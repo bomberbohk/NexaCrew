@@ -33,6 +33,30 @@ DISCOVER_MAGIC = "MAPSTUDIO-DISCOVER-V1"
 NODE_ID = uuid.uuid4().hex[:12]
 STARTED_AT = time.time()
 
+
+def _read_version() -> str:
+    try:
+        from pathlib import Path
+        return (Path(__file__).resolve().parent.parent.parent / "VERSION"
+                ).read_text(encoding="utf-8-sig").strip() or "0.0.0"
+    except OSError:
+        return "0.0.0"
+
+
+APP_VERSION = _read_version()
+
+
+def _ver_tuple(v: str) -> tuple:
+    try:
+        return tuple(int(x) for x in str(v).strip().split("."))
+    except ValueError:
+        return (0,)
+
+
+# set by main.py: called when a cluster peer runs a newer version — wakes the
+# portal auto-updater immediately so clustered servers converge fast
+on_update_available = None
+
 # Controller-side registry: node_id -> node dict
 NODES: dict[str, dict] = {}
 _NODES_LOCK = threading.Lock()
@@ -80,6 +104,7 @@ def node_info() -> dict:
         cpu = mem = None
     return {
         "node_id": NODE_ID,
+        "version": APP_VERSION,
         "name": cfg.get("node_name") or socket.gethostname(),
         "host": _local_ip(),
         "port": int(cfg.get("server_port", 8600)),
@@ -131,6 +156,7 @@ def cluster_status() -> dict:
     now = time.time()
     with _NODES_LOCK:
         nodes = [{**n, "online": now - n["last_seen"] < 30,
+                  "outdated": _ver_tuple(n.get("version") or "0") < _ver_tuple(APP_VERSION),
                   "last_seen_s": int(now - n["last_seen"])} for n in NODES.values()]
     return {"role": cfg.get("cluster_role", "standalone"), "self": me,
             "controller_ip": cfg.get("controller_ip", ""),
@@ -150,7 +176,11 @@ def _heartbeat_loop() -> None:
                     url, data=json.dumps(node_info()).encode(),
                     headers={"Content-Type": "application/json",
                              "X-Cluster-Secret": cfg.get("cluster_secret", "")})
-                urllib.request.urlopen(req, timeout=8).read()
+                resp = json.loads(urllib.request.urlopen(req, timeout=8).read()
+                                  .decode("utf-8", "ignore") or "{}")
+                cv = str(resp.get("version") or "")
+                if cv and _ver_tuple(cv) > _ver_tuple(APP_VERSION) and on_update_available:
+                    on_update_available()  # controller is newer — update now
             except Exception:  # noqa: BLE001 — controller may be down; retry
                 pass
         time.sleep(10)

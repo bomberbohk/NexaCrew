@@ -128,6 +128,8 @@ async def _capture_loop() -> None:
     # themselves from this server via the existing heartbeat updater)
     threading.Thread(target=_portal_auto_updater, daemon=True,
                      name="portal-auto-update").start()
+    # clustering: when a cluster peer runs a newer version, converge right away
+    _cluster.on_update_available = _UPDATE_CHECK_NOW.set
 
 
 # NOTE: security response headers are applied by the single _security_headers
@@ -1574,7 +1576,10 @@ async def cluster_heartbeat(request: Request):
         raise HTTPException(400, "Invalid heartbeat payload")
     info["host"] = info.get("host") or (request.client.host if request.client else "")
     _cluster.register_heartbeat(info)
-    return {"ok": True, "controller": _cluster.NODE_ID}
+    # a worker running a newer version means the portal has one — update now
+    if _ver_tuple(str(info.get("version") or "0")) > _ver_tuple(APP_VERSION):
+        _UPDATE_CHECK_NOW.set()
+    return {"ok": True, "controller": _cluster.NODE_ID, "version": APP_VERSION}
 
 
 @app.post("/api/cluster/execute")
@@ -1844,6 +1849,9 @@ def _check_license(db: Session, key: str, ip: str, hostname: str = "",
 
 
 # ==================== Automatic server update from mapstudiousa.com ====================
+_UPDATE_CHECK_NOW = threading.Event()   # set to force an immediate portal check
+
+
 def _portal_auto_updater() -> None:
     """Daemon thread: the server checks mapstudiousa.com periodically; when
     the portal publishes a newer version it downloads the release package,
@@ -1859,7 +1867,8 @@ def _portal_auto_updater() -> None:
 
     first = True
     while True:
-        _time.sleep(120 if first else 6 * 3600 + random.randint(0, 900))
+        _UPDATE_CHECK_NOW.wait(timeout=120 if first else 6 * 3600 + random.randint(0, 900))
+        _UPDATE_CHECK_NOW.clear()
         first = False
         try:
             from .config import get_config as _cfg

@@ -10112,10 +10112,13 @@ views.cluster = async (v) => {
     const boxNode = (n, x, y, kind) => {
       /* kind: controller | worker | standalone */
       const online = n.online !== false;
-      const col = kind === "controller" || kind === "standalone" ? "#4f8ef7" : online ? "#22c55e" : "#ef4444";
+      const outdated = kind === "worker" && n.outdated && online;
+      const col = kind === "controller" || kind === "standalone" ? "#4f8ef7" : outdated ? "#f59e0b" : online ? "#22c55e" : "#ef4444";
       const role = kind === "controller" ? "CONTROLLER" : kind === "standalone" ? "STANDALONE CORE" : "WORKER";
       const l3 = online
-        ? `⚡ ${n.active_jobs || 0} active · ${n.total_jobs || 0} jobs${n.cpu_percent != null ? ` · CPU ${n.cpu_percent}%` : ""}`
+        ? outdated
+          ? `⬆ v${n.version || "?"} — ${t("UPDATING TO")} v${me.version || s.version || "?"}`
+          : `⚡ ${n.active_jobs || 0} active · ${n.total_jobs || 0} jobs${n.cpu_percent != null ? ` · CPU ${n.cpu_percent}%` : ""}`
         : "LINK DOWN";
       const wide = kind !== "worker";
       const w2 = wide ? 105 : 88, h2 = wide ? 46 : 38;
