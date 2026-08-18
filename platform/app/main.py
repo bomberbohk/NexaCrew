@@ -1727,6 +1727,36 @@ def _check_license(db: Session, key: str, ip: str, hostname: str = "",
             return LicenseKey(key=norm, note="server authority key (transient)")
     row = db.query(LicenseKey).filter_by(key=norm).first()
     if not row:
+        # Key not registered locally — verify it against mapstudiousa.com and
+        # auto-register on success, so a client seat purchased in the portal
+        # works immediately without the admin pre-entering it. The server's
+        # own authority key is still rejected as a client seat.
+        import re as _re5
+        from .config import get_config as _gc2
+        cfg2 = _gc2()
+        srv_key2 = (cfg2.get("authority_license_key") or "").strip().upper()
+        if (norm != srv_key2
+                and _re5.fullmatch(r"[A-F0-9]{5}(-[A-F0-9]{5}){3}", norm)):
+            try:
+                from .license_authority import verify_key
+                res = verify_key(cfg2, norm)
+            except Exception as e:                       # noqa: BLE001
+                logging.getLogger("license").warning(
+                    "portal verification unavailable for auto-register: %s", e)
+                res = {}
+            if res.get("ok"):
+                row = LicenseKey(
+                    key=norm,
+                    note=(f"{res.get('company', '')} · {res.get('plan', '')} · "
+                          f"{res.get('seats', 0)} seats (auto-registered via "
+                          f"mapstudiousa.com at first use)")[:300])
+                db.add(row)
+                db.commit()
+                db.refresh(row)
+                audit(db, "license.autoregister",
+                      f"{norm} verified with mapstudiousa.com and registered "
+                      f"on first use from {ip}")
+    if not row:
         raise HTTPException(403, "Invalid license key — ask your administrator for a key")
     if row.revoked:
         raise HTTPException(403, "This license key has been revoked")
