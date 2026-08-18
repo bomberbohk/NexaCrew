@@ -2,9 +2,9 @@
 
 **👨‍💻 Developed by [Sin Chi Chiu](mailto:peterchiu@mapstudiousa.com) · [MAP Studio USA](https://www.mapstudiousa.com)** · ☎ +1-949-331-6528
 
-**Run your entire company with chat prompts.** NexaCrew is a self-hosted, AI-native ERP · POS · Workforce · Visitor-Management platform engineered to data-center standards — one installer, one server, and every workstation, kiosk and hand-held device in your facility comes online.
+**Run your entire company with chat prompts.** NexaCrew is a self-hosted, AI-native ERP · POS · Inventory (IMS) · Warehouse (WMS) · Workforce · Visitor-Management platform engineered to data-center standards — one installer, one server, and every workstation, kiosk and hand-held device in your facility comes online.
 
-> ERP + POS + HR + Visitor Kiosk + Access Control + AI Agents — unified in a single platform you own and operate on your own hardware. No cloud lock-in. No per-seat SaaS fees.
+> ERP + POS + Inventory Management + Warehouse Management + HR + Visitor Kiosk + Access Control + AI Agents — unified in a single platform you own and operate on your own hardware. No cloud lock-in. No per-seat SaaS fees.
 
 ---
 
@@ -18,7 +18,8 @@
 | 🖥️ **Kiosk & Station Modes** | Any Chromebook, iPad or Android tablet becomes a dedicated terminal: **Station mode** locks a workbench to one register (scan → test → commit); **Kiosk mode** runs self-service POS, worker time-clock check-in and visitor reception unattended. |
 | 🙋 **Visitor Management with Face Recognition** | Returning visitors are recognized by a real server-side face-recognition stack (dlib 128-d encodings + DeepFace verification + OpenCV) — one glance at the kiosk and their record is retrieved, host notified, badge issued with QR access control. |
 | 👷 **Workforce & Access Control** | HR enrollment auto-provisions worker logins, prints ID badges with opaque QR credentials (zero PII in the code), drives the time-clock, payroll batches, door-access decisions and badge lifecycle — issue, suspend, revoke, all audited. |
-| 🛒 **Point of Sale** | Touch-first POS with barcode/QR scanning, receipts, cash-drawer flows and inventory integration — runs on the same platform, same audit trail. |
+| � **Inventory & Warehouse Management (IMS / WMS)** | Full inventory lifecycle — receiving, grading/QC, put-away, stock registers and lot tracking — on visual **facility maps you draw yourself**: warehouses, zones and racks with structured storage-location codes. Barcode/serial capture by camera at the workbench, cross-form cascades so goods flow receiving → QC → inventory without re-keying, and AI prompts like *"8 pallets arrived from supplier X — receive and stage for grading"* executed end-to-end. |
+| �🛒 **Point of Sale** | Touch-first POS with barcode/QR scanning, receipts, cash-drawer flows and inventory integration — runs on the same platform, same audit trail. |
 | 🔄 **Zero-Touch Fleet Updates** | Clients auto-update from your server: version beacon, checksummed package download, atomic install, automatic restart. One `curl` command installs a Linux client; one `.bat` installs Windows. |
 | 🗣️ **Multilingual** | English · 繁體中文 · Español across the console, kiosks and operation logs — query your ops log in any of them. |
 
