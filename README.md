@@ -1,5 +1,7 @@
 # NexaCrew — AI-Native Enterprise Operations Platform
 
+**👨‍💻 Developed by [Sin Chi Chiu](mailto:peterchiu@mapstudiousa.com) · [MAP Studio USA](https://www.mapstudiousa.com)** · ☎ +1-949-331-6528
+
 **Run your entire company with chat prompts.** NexaCrew is a self-hosted, AI-native ERP · POS · Workforce · Visitor-Management platform engineered to data-center standards — one installer, one server, and every workstation, kiosk and hand-held device in your facility comes online.
 
 > ERP + POS + HR + Visitor Kiosk + Access Control + AI Agents — unified in a single platform you own and operate on your own hardware. No cloud lock-in. No per-seat SaaS fees.
