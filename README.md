@@ -8,7 +8,28 @@
 
 ---
 
-## 🚀 Why NexaCrew
+## �️ Platform Tour
+
+> Screenshots from a live production deployment (customer identity and personal data redacted).
+
+**Fleet console — every workstation, kiosk and mobile terminal on one live network topology**
+![Client Connections — live fleet topology](docs/images/001.png)
+
+**Cluster management — controller/worker roles, LAN auto-discovery, load-balanced AI dispatch**
+![Cluster Network](docs/images/002.png)
+
+**Chat-driven operations — tell the AI what happened, it commits the ISO-controlled record**
+![AI chat committing a receiving record](docs/images/003.png)
+
+**Tamper-evident operations log — every action attributed with operator face capture and SHA-256 integrity chain**
+![Operations Log with face attribution](docs/images/004.png)
+
+**Operations Studio — package your company's entire SOP (registers + AI chat directive) and install it anywhere**
+![Operations Studio package builder](docs/images/005.png)
+
+---
+
+## �🚀 Why NexaCrew
 
 | | |
 |---|---|
