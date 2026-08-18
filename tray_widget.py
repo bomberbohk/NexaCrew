@@ -248,10 +248,30 @@ def run_tray(host: str, port: int, role: str) -> int:
                              lambda: open_cameras(host, port, role)),
             pystray.MenuItem("⬆ Update program…",
                              lambda: open_updater(host, port, role)),
+            pystray.MenuItem("🔄 Restart",
+                             lambda: _restart_program(icon)),
             pystray.MenuItem("🌐 Open " + PRODUCT,
                              lambda: webbrowser.open(f"http://{host}:{port}/")),
             pystray.MenuItem("❌ Close status icon", lambda: icon.stop()),
         ))
+
+    def _restart_program(tray_icon) -> None:
+        """Relaunch the whole client program (start.py) detached, then exit
+        this process — the new instance takes over cleanly."""
+        try:
+            flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+            subprocess.Popen([sys.executable, str(ROOT / "start.py")],
+                             creationflags=flags, cwd=str(ROOT),
+                             close_fds=True)
+        except OSError as e:
+            # keep the current instance alive rather than leaving the user
+            # with nothing running
+            print(f"restart failed: {e}", file=sys.stderr)
+            return
+        try:
+            tray_icon.stop()
+        finally:
+            os._exit(0)   # noqa: SLF001 — hard exit after detached relaunch
 
     def poller():
         last = None
