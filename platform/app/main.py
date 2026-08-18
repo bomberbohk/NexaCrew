@@ -103,6 +103,32 @@ async def _capture_loop() -> None:
     from .config import get_config as _lic_cfg
     start_background_validation(_lic_cfg)
 
+    # developer account — config is authoritative: grant the flag to the
+    # configured username, revoke it from everyone else (least privilege)
+    try:
+        from .db import SessionLocal as _SL
+        dev_name = (_lic_cfg().get("developer_username") or "").strip()
+        with _SL() as _db:
+            changed = False
+            for u in _db.query(User).filter(User.is_developer == True).all():  # noqa: E712
+                if u.username != dev_name:
+                    u.is_developer = False
+                    changed = True
+            if dev_name:
+                u = _db.query(User).filter(User.username == dev_name).first()
+                if u and not u.is_developer:
+                    u.is_developer = True
+                    changed = True
+            if changed:
+                _db.commit()
+    except Exception as e:  # noqa: BLE001 — startup must not die on this
+        print(f"⚠ developer flag sync failed: {e}", flush=True)
+
+    # automatic server updates from mapstudiousa.com (clients then update
+    # themselves from this server via the existing heartbeat updater)
+    threading.Thread(target=_portal_auto_updater, daemon=True,
+                     name="portal-auto-update").start()
+
 
 # NOTE: security response headers are applied by the single _security_headers
 # middleware further below (X-Frame-Options DENY, camera=(self) for the
@@ -406,6 +432,14 @@ def _touch_client_ip(db: Session, request: Request) -> None:
 def require_admin(user: User) -> None:
     if not user.is_admin:
         raise HTTPException(403, "Administrator privileges required")
+
+
+def require_developer(user: User) -> None:
+    """Developer mode — the highest permission tier, above administrator.
+    Granted exclusively through the server's `developer_username` config
+    (synchronized at startup); it can never be self-assigned via the API."""
+    if not getattr(user, "is_developer", False):
+        raise HTTPException(403, "Developer privileges required")
 
 
 class UserIn(BaseModel):
@@ -1807,6 +1841,91 @@ def _check_license(db: Session, key: str, ip: str, hostname: str = "",
             from .license_authority import request_sync
             request_sync()
     return row
+
+
+# ==================== Automatic server update from mapstudiousa.com ====================
+def _portal_auto_updater() -> None:
+    """Daemon thread: the server checks mapstudiousa.com periodically; when
+    the portal publishes a newer version it downloads the release package,
+    verifies its SHA-256, applies it (platform/data is never touched) and
+    restarts. Clients then auto-update from this server via the existing
+    heartbeat mechanism — the whole fleet follows the portal automatically."""
+    import hashlib
+    import random
+    import sys
+    import tarfile
+    import tempfile
+    import urllib.request
+
+    first = True
+    while True:
+        _time.sleep(120 if first else 6 * 3600 + random.randint(0, 900))
+        first = False
+        try:
+            from .config import get_config as _cfg
+            cfg = _cfg()
+            if str(cfg.get("auto_update_from_portal", "on")).strip().lower() == "off":
+                continue
+            base = (cfg.get("portal_package_url") or "").strip()
+            if not base.startswith("https://"):
+                continue
+            req = urllib.request.Request(
+                base + "?action=manifest",
+                headers={"User-Agent": f"NexaCrew/{APP_VERSION}"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                man = json.loads(r.read(1 << 20).decode("utf-8"))
+            remote = str(man.get("version") or "").strip()
+            sha_want = str(man.get("sha256") or "").strip().lower()
+            if (not man.get("ok") or not remote or not sha_want
+                    or _ver_tuple(remote) <= _ver_tuple(APP_VERSION)):
+                continue
+            url = str(man.get("url") or (base + "?action=download"))
+            print(f"⬆ portal update: v{APP_VERSION} → v{remote} — downloading", flush=True)
+            tmp = Path(tempfile.gettempdir()) / f"nexacrew_update_{remote}.tar.gz"
+            h = hashlib.sha256()
+            dreq = urllib.request.Request(
+                url, headers={"User-Agent": f"NexaCrew/{APP_VERSION}"})
+            with urllib.request.urlopen(dreq, timeout=120) as r, open(tmp, "wb") as f:
+                while True:
+                    chunk = r.read(1 << 16)
+                    if not chunk:
+                        break
+                    h.update(chunk)
+                    f.write(chunk)
+            if h.hexdigest().lower() != sha_want:
+                print(f"❌ portal update v{remote}: SHA-256 mismatch — aborted "
+                      "(will retry next cycle)", flush=True)
+                tmp.unlink(missing_ok=True)
+                continue
+            with tarfile.open(tmp, "r:gz") as tf:
+                members = []
+                for m in tf.getmembers():
+                    parts = Path(m.name).parts
+                    if len(parts) < 2 or m.issym() or m.islnk() or ".." in parts:
+                        continue  # top-level dir, links, traversal
+                    rel = Path(*parts[1:]).as_posix()
+                    if rel.startswith("platform/data"):
+                        continue  # never overwrite the customer database/config
+                    m.name = rel
+                    members.append(m)
+                tf.extractall(ROOT_DIR, members=members)
+            tmp.unlink(missing_ok=True)
+            try:
+                from .db import SessionLocal as _SL
+                with _SL() as _db:
+                    audit(_db, "server.auto_update",
+                          f"updated from mapstudiousa.com: v{APP_VERSION} → v{remote}")
+                    _db.commit()
+            except Exception:  # noqa: BLE001 — audit failure must not block restart
+                pass
+            print(f"✅ updated to v{remote} — restarting server", flush=True)
+            _time.sleep(2)
+            try:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            except OSError:
+                os._exit(3)  # supervisor (start.py watchdog / systemd) restarts us
+        except Exception as e:  # noqa: BLE001 — updater must never crash the server
+            print(f"⚠ portal update check failed: {e} — retrying next cycle", flush=True)
 
 
 @app.post("/api/license/claim")
@@ -3760,6 +3879,96 @@ def ops_package_remove(user: User = Depends(current_user),
           user_id=user.id)
     db.commit()
     return {"ok": True, "removed": existed}
+
+
+# ==================== Developer mode — company export / import ====================
+COMPANY_BUNDLE_SCHEMA = "nexacrew-company/1"
+
+
+@app.get("/api/dev/companies")
+def dev_companies(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Developer only — every commercial company hosted on this server."""
+    require_developer(user)
+    rows = (db.query(BusinessProfile)
+            .filter(BusinessProfile.usage_mode == "commercial")
+            .order_by(BusinessProfile.company_name).limit(500).all())
+    return {"companies": [{"owner_id": r.user_id,
+                           "company_name": r.company_name or r.custom_type or "(unnamed)",
+                           "company_type": r.company_type} for r in rows]}
+
+
+@app.get("/api/dev/company-export")
+def dev_company_export(owner_id: str = "", user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Developer only — export a chosen company as a portable bundle
+    (profile + Operations Package) that any server can import."""
+    require_developer(user)
+    from . import ops_package as opk_mod
+    oid = (owner_id or "").strip() or _biz_uid(db, user)
+    bp = db.query(BusinessProfile).filter(BusinessProfile.user_id == oid).first()
+    if not bp:
+        raise HTTPException(404, "Unknown company — pick one from /api/dev/companies")
+    pkg = opk_mod.load_package(oid)
+    if pkg is None:
+        company = (bp.company_name or bp.custom_type or "Company").strip()
+        pkg = opk_mod.builtin_as_package(bp.company_type, company,
+                                         bp.generated_prompt or "")
+    bundle = {"schema": COMPANY_BUNDLE_SCHEMA,
+              "exported_at": dt.datetime.utcnow().isoformat() + "Z",
+              "exported_by": user.username,
+              "app_version": APP_VERSION,
+              "company": {"usage_mode": "commercial",
+                          "company_type": bp.company_type,
+                          "custom_type": bp.custom_type,
+                          "company_name": bp.company_name,
+                          "company_desc": bp.company_desc,
+                          "generated_prompt": bp.generated_prompt,
+                          "docs": bp.docs or "[]",
+                          "docs_text": bp.docs_text or ""},
+              "ops_package": pkg}
+    audit(db, "dev.company.export",
+          f"company='{bp.company_name}' owner={oid}", user_id=user.id)
+    db.commit()
+    return bundle
+
+
+@app.post("/api/dev/company-import")
+def dev_company_import(body: dict, user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Import a company bundle into the caller's own company (developer or
+    administrator). Sets the business profile and installs the Operations
+    Package atomically; the action is audited."""
+    if not (getattr(user, "is_developer", False) or user.is_admin):
+        raise HTTPException(403, "Administrator or developer privileges required")
+    from . import ops_package as opk_mod
+    if not isinstance(body, dict) or body.get("schema") != COMPANY_BUNDLE_SCHEMA:
+        raise HTTPException(422, f"body must be a company bundle (schema={COMPANY_BUNDLE_SCHEMA})")
+    co = body.get("company")
+    pkg = body.get("ops_package")
+    if not isinstance(co, dict) or not isinstance(pkg, dict):
+        raise HTTPException(422, "bundle must contain 'company' and 'ops_package' objects")
+    bp = _get_owner_bp(db, user)
+    try:
+        clean = opk_mod.save_package(bp.user_id, pkg)
+    except ValueError as e:
+        raise HTTPException(422, f"Operations Package rejected: {e}") from e
+    except OSError as e:
+        raise HTTPException(500, "Package could not be persisted — check disk "
+                                 "space and data/ permissions") from e
+    bp.usage_mode = "commercial"
+    bp.company_type = str(co.get("company_type") or "")[:80]
+    bp.custom_type = str(co.get("custom_type") or "")[:200]
+    bp.company_name = str(co.get("company_name") or "")[:200]
+    bp.company_desc = str(co.get("company_desc") or "")[:20000]
+    bp.generated_prompt = str(co.get("generated_prompt") or "")
+    bp.docs = co.get("docs") if isinstance(co.get("docs"), str) else "[]"
+    bp.docs_text = str(co.get("docs_text") or "")
+    bp.prompt_status = "ready" if bp.generated_prompt else ""
+    audit(db, "dev.company.import",
+          f"company='{bp.company_name}' pkg='{clean['name']}' v{clean['version']} "
+          f"modules={len(clean['modules'])}", user_id=user.id)
+    db.commit()
+    return {"ok": True, "company_name": bp.company_name, "package": clean}
 
 
 @app.get("/api/business/records")

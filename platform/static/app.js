@@ -975,6 +975,8 @@ async function showOpsStudio() {
         <button type="button" class="btn small primary" id="opk-add">➕ ${t("Add module")}</button>
         <button type="button" class="btn small" id="opk-export">⬇ ${t("Export JSON")}</button>
         <button type="button" class="btn small" id="opk-import">⬆ ${t("Import JSON")}</button>
+        ${state.user && state.user.is_developer ? `<button type="button" class="btn small" id="opk-exp-co">🏢 ${t("Export company")}</button>` : ""}
+        ${state.user && (state.user.is_developer || state.user.is_admin) ? `<button type="button" class="btn small" id="opk-imp-co">🏬 ${t("Import company")}</button>` : ""}
         <span style="flex:1"></span>
         ${info.installed ? `<button type="button" class="btn small" id="opk-revert">↩ ${t("Revert to built-in")}</button>` : ""}
         <button type="button" class="btn small primary" id="opk-install">💾 ${t("Install package")}</button>
@@ -1072,6 +1074,46 @@ async function showOpsStudio() {
         toast("↩ " + t("Reverted to built-in template"));
         closeModal(); state.bizWs = null; render();
       } catch (e) { toast("❌ " + e.message, "err"); }
+    };
+    const expCo = $("#opk-exp-co");
+    if (expCo) expCo.onclick = async () => {   // developer: export a chosen company as a portable bundle
+      try {
+        const { companies } = await api("/dev/companies");
+        if (!companies.length) { toast("❌ " + t("No commercial companies on this server")); return; }
+        let oid = companies[0].owner_id;
+        if (companies.length > 1) {
+          const menu = companies.map((c, i) => `${i + 1}. ${c.company_name}`).join("\n");
+          const pick = prompt(t("Export which company?") + "\n" + menu, "1");
+          if (pick === null) return;
+          const idx = parseInt(pick, 10) - 1;
+          if (!(idx >= 0 && idx < companies.length)) { toast("❌ " + t("Invalid choice")); return; }
+          oid = companies[idx].owner_id;
+        }
+        const bundle = await api("/dev/company-export?owner_id=" + encodeURIComponent(oid));
+        const blob = new Blob([JSON.stringify(bundle, null, 1)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "company_" + (bundle.company.company_name || "export").replace(/[^\w-]+/g, "_") + ".json";
+        a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        toast(`🏢 ${t("Company exported")} — "${bundle.company.company_name}"`);
+      } catch (e) { toast("❌ " + e.message, "err"); }
+    };
+    const impCo = $("#opk-imp-co");
+    if (impCo) impCo.onclick = () => {         // developer/admin: import a company bundle onto this server
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.accept = ".json,application/json";
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return;
+        try {
+          const j = JSON.parse(await f.text());
+          if (!j || j.schema !== "nexacrew-company/1") throw new Error(t("not a company bundle"));
+          if (!confirm(`${t("Import company")} "${j.company.company_name}"? ${t("This replaces YOUR company profile and Operations Package (records are retained).")}`)) return;
+          const r = await api("/dev/company-import", { method: "POST", body: j });
+          toast(`✅ ${t("Company imported")} — "${r.company_name}"`);
+          closeModal(); state.bizWs = null; render();
+        } catch (e) { toast("❌ " + t("Import failed") + ": " + e.message, "err"); }
+      };
+      inp.click();
     };
   }
   openStudio();

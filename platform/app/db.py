@@ -60,6 +60,9 @@ class User(TimestampMixin, Base):
     display_name = Column(String, default="")
     password_hash = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False)  # least privilege — admins are explicit
+    is_developer = Column(Boolean, default=False)  # developer mode — above admin;
+                                                   # granted only via the server's
+                                                   # developer_username config
     company_owner_id = Column(String, default="")  # multi-company servers: the owner
                                                    # (tenant) this worker belongs to —
                                                    # set at HR enrollment; "" = unbound
@@ -870,6 +873,10 @@ def init_db() -> None:
         cols = [r[1] for r in conn.execute(text("PRAGMA table_info(users)"))]
         if cols and "company_owner_id" not in cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN company_owner_id TEXT DEFAULT ''"))
+            conn.commit()
+        cols = [r[1] for r in conn.execute(text("PRAGMA table_info(users)"))]
+        if cols and "is_developer" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_developer BOOLEAN DEFAULT 0"))
             conn.commit()
         cols = [r[1] for r in conn.execute(text("PRAGMA table_info(business_profiles)"))]
         if cols and "license_key" not in cols:

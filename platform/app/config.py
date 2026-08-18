@@ -65,6 +65,11 @@ DEFAULTS: dict = {
     "authority_url": "https://mapstudiousa.com/backend/nexacrew-license-api.php",
     "authority_license_key": "",    # key purchased on mapstudiousa.com (XXXXX-XXXXX-XXXXX-XXXXX)
     "authority_check_hours": 12,    # re-validation interval (72 h offline grace)
+    # --- developer mode (highest permission — above administrator) ---
+    "developer_username": "",       # username granted developer mode on this server
+    # --- automatic updates from mapstudiousa.com ---
+    "auto_update_from_portal": "on",   # "on" | "off" — server self-updates when the portal has a newer version
+    "portal_package_url": "https://mapstudiousa.com/backend/nexacrew-package-api.php",
 }
 
 FIELD_META = {
@@ -107,6 +112,9 @@ FIELD_META = {
     "authority_url": {"label": "License authority URL (mapstudiousa.com validation endpoint)", "type": "text", "group": "license"},
     "authority_license_key": {"label": "Server license key purchased on mapstudiousa.com (empty = unlicensed evaluation)", "type": "text", "group": "license"},
     "authority_check_hours": {"label": "License re-validation interval (hours, 72 h offline grace)", "type": "number", "min": 1, "max": 72, "group": "license"},
+    "developer_username": {"label": "Developer account username (highest permission — above administrator; empty = no developer on this server)", "type": "text", "group": "developer"},
+    "auto_update_from_portal": {"label": "Auto-update this server from mapstudiousa.com when a newer version is published", "type": "select", "options": ["on", "off"], "group": "developer"},
+    "portal_package_url": {"label": "Portal package API URL (mapstudiousa.com)", "type": "text", "group": "developer"},
 }
 
 
