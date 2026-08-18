@@ -44,6 +44,19 @@
 | 🔄 **Zero-Touch Fleet Updates** | Clients auto-update from your server: version beacon, checksummed package download, atomic install, automatic restart. One `curl` command installs a Linux client; one `.bat` installs Windows. |
 | 🗣️ **Multilingual** | English · 繁體中文 · Español across the console, kiosks and operation logs — query your ops log in any of them. |
 
+## 🤖 AI Model Support — Bring Your Own AI
+
+NexaCrew is **model-agnostic**. Point it at any AI backend you already have — local or hosted — and the agent workflows, chat operations and SOP generation run on it:
+
+- **OpenAI Codex CLI** — runs the locally installed `codex` agent
+- **Claude Code CLI** (Anthropic) — full implementation agent with file-edit capability
+- **Ollama** — run **LLaMA 3, DeepSeek, Qwen, Kimi (Moonshot), Mistral, Gemma** and any other local model fully offline on your own hardware
+- **OpenAI-compatible APIs** — OpenAI, Azure OpenAI, DeepSeek API, Qwen (DashScope), Moonshot Kimi API, Groq, LM Studio, or any server that speaks the chat-completions protocol
+- **Anthropic API** — Claude models via direct API key
+- **GPU-aware routing** — cluster nodes advertise their GPUs and AI work is dispatched to the best-equipped machine; multiple providers can be configured with automatic failover
+
+No cloud requirement: a mini-PC running Ollama with a local LLaMA/Qwen/DeepSeek model can drive the entire platform air-gapped.
+
 ## 🏗️ Architecture — Engineered Like a Data Center
 
 - **Single-binary style deployment**: FastAPI + SQLite(WAL) + vanilla-JS PWA frontend — no external database, message broker or container orchestration required. Runs on anything from a mini-PC to a rack server.
@@ -91,3 +104,5 @@ Licensing, seats and support: [www.mapstudiousa.com](https://www.mapstudiousa.co
 ---
 
 *NexaCrew — the operations platform that treats your business like a mission-critical system, because it is.*
+
+**Keywords**: AI agents · ERP · POS · inventory management · warehouse management · WMS · IMS · visitor management · access control · face recognition · OpenAI Codex · Claude Code · Anthropic · Ollama · LLaMA · DeepSeek · Qwen · Kimi · Moonshot · local LLM · self-hosted AI · offline AI · FastAPI · kiosk · time clock · payroll · ISO 9001 · R2v3 · multilingual · 繁體中文 · Español
