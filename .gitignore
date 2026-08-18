@@ -1,0 +1,34 @@
+# Virtual environments
+.venv/
+.venv-linux/
+.venv-mac/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Debug artifacts
+_dbg_*.jpg
+
+# ---- runtime data, secrets & customer records — NEVER push ----
+platform/data/
+*.db
+*.db-wal
+*.db-shm
+*.pem
+*.key
+*.crt
+*.log
+out.log
+err.log
+*.zip
+
+# ---- CONFIDENTIAL: customer SOPs / operations documents ----
+docs/chat-history/
+docs/make_employee_ops_manual_xxmega.py
+docs/make_employee_ops_manual_bilingual.py
+docs/make_technical_note_v1_54.py
+handoff/
+SKILL/
+docs/*.docx

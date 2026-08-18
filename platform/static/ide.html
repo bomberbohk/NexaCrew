@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SkillScript BASIC IDE — MAP Studio</title>
+<style>
+:root {
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1d2639; --border:#2a3550;
+  --text:#e6ecf7; --muted:#8b95a7; --accent:#3b82f6; --green:#22c55e;
+  --red:#ef4444; --yellow:#eab308; --purple:#a78bfa; --cyan:#22d3ee; --orange:#fb923c;
+}
+* { box-sizing:border-box; }
+html,body { height:100%; margin:0; }
+body { font-family:"Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column; overflow:hidden; }
+
+/* ---- top bar ---- */
+.topbar { display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border); flex-shrink:0; }
+.topbar .logo { font-size:20px; }
+.topbar b { font-size:15px; }
+.topbar .ver { font-size:11px; color:var(--muted); }
+.topbar input#skill-name { width:260px; padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:13px; }
+.topbar select { padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:13px; }
+.btn { padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); cursor:pointer; font-size:13px; font-family:inherit; white-space:nowrap; }
+.btn:hover { border-color:var(--accent); }
+.btn.primary { background:var(--accent); border-color:var(--accent); }
+.btn.success { background:var(--green); border-color:var(--green); color:#06220f; font-weight:600; }
+.spacer { flex:1; }
+.status-dot { font-size:11px; color:var(--muted); }
+
+/* ---- main layout ---- */
+.main { flex:1; display:flex; min-height:0; }
+.editor-col { flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--border); }
+
+/* editor */
+.editor-wrap { flex:1; display:flex; min-height:0; position:relative; background:#0d1220; }
+.gutter { width:52px; flex-shrink:0; background:#0b101c; border-right:1px solid var(--border); color:#4a5670; font:13px/1.5 Consolas,Monaco,monospace; text-align:right; padding:10px 8px 10px 0; overflow:hidden; user-select:none; white-space:pre; }
+.code-area { position:relative; flex:1; min-width:0; }
+textarea#code, pre#hl {
+  margin:0; padding:10px 14px; border:0; width:100%; height:100%;
+  font:13px/1.5 Consolas,Monaco,monospace; white-space:pre; overflow:auto;
+  tab-size:2; word-break:normal; overflow-wrap:normal;
+}
+textarea#code { position:absolute; inset:0; background:transparent; color:transparent; caret-color:#fff; resize:none; outline:none; z-index:2; }
+pre#hl { position:absolute; inset:0; z-index:1; pointer-events:none; color:var(--text); }
+pre#hl .kw { color:#60a5fa; font-weight:600; }
+pre#hl .fn { color:var(--purple); }
+pre#hl .str { color:#86efac; }
+pre#hl .num { color:var(--orange); }
+pre#hl .com { color:#5b6982; font-style:italic; }
+pre#hl .lbl { color:var(--cyan); }
+pre#hl .op { color:#f472b6; }
+
+/* console */
+.console { height:200px; flex-shrink:0; border-top:1px solid var(--border); display:flex; flex-direction:column; background:#0b101c; }
+.console-head { display:flex; gap:8px; align-items:center; padding:5px 12px; border-bottom:1px solid var(--border); font-size:12px; color:var(--muted); }
+.console-head .ctab { cursor:pointer; padding:3px 10px; border-radius:6px; }
+.console-head .ctab.active { background:var(--panel2); color:var(--text); }
+.console-body { flex:1; overflow:auto; padding:8px 14px; font:12px/1.55 Consolas,monospace; white-space:pre-wrap; }
+.console-body .ok { color:var(--green); }
+.console-body .err { color:var(--red); }
+.console-body .dim { color:var(--muted); }
+
+/* ---- help sidebar ---- */
+.help-col { width:420px; flex-shrink:0; display:flex; flex-direction:column; background:var(--panel); }
+.help-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+.help-tabs button { flex:1; padding:10px 4px; background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); cursor:pointer; font-size:12.5px; font-family:inherit; }
+.help-tabs button.active { color:var(--text); border-bottom-color:var(--accent); font-weight:600; }
+.help-search { padding:8px 12px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.help-search input { width:100%; padding:8px 11px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:13px; }
+.help-body { flex:1; overflow-y:auto; padding:12px 14px; }
+.help-body h3 { font-size:14px; margin:14px 0 6px; color:var(--cyan); }
+.help-body h4 { font-size:13px; margin:12px 0 4px; }
+.help-body p, .help-body li { font-size:12.5px; line-height:1.6; color:#c4cede; }
+.doc-item { border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:10px; background:var(--panel2); }
+.doc-item .syntax { font:12px Consolas,monospace; color:#93c5fd; background:#0d1220; padding:6px 9px; border-radius:6px; display:block; margin:4px 0 6px; white-space:pre-wrap; }
+.doc-item .name { font-weight:700; font-size:13px; }
+.doc-item .cat { float:right; font-size:10px; color:var(--muted); border:1px solid var(--border); padding:1px 7px; border-radius:99px; }
+.doc-item .desc { font-size:12px; color:#c4cede; line-height:1.55; }
+.doc-item pre.ex { font:11.5px/1.5 Consolas,monospace; background:#0d1220; border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin:6px 0 2px; white-space:pre-wrap; color:#e6ecf7; overflow-x:auto; }
+.doc-item .ex-label { font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:6px; }
+.doc-item .out { font-size:11px; color:var(--green); font-family:Consolas,monospace; }
+.doc-item button.ins { float:right; font-size:11px; padding:3px 9px; margin-left:6px; }
+.tut-step { border-left:3px solid var(--accent); padding:2px 0 2px 12px; margin:14px 0; }
+.tut-step b { color:var(--text); }
+.tut-step pre { font:11.5px/1.5 Consolas,monospace; background:#0d1220; border:1px solid var(--border); border-radius:6px; padding:8px 10px; white-space:pre-wrap; overflow-x:auto; }
+kbd { background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:11px; font-family:Consolas,monospace; }
+
+/* ---- error marking ---- */
+pre#hl .errline { display:inline-block; min-width:100%; background:rgba(239,68,68,.16); box-shadow:inset 3px 0 0 var(--red); border-radius:2px; }
+.gutter .gerr { color:var(--red); font-weight:700; }
+
+/* ---- intellisense tooltip ---- */
+#tooltip { position:absolute; z-index:50; max-width:480px; background:#1a2338; border:1px solid var(--accent); border-radius:10px; padding:10px 12px; box-shadow:0 12px 30px rgba(0,0,0,.6); display:none; pointer-events:none; }
+#tooltip .t-name { font:600 13px Consolas,monospace; color:#93c5fd; }
+#tooltip .t-ret { float:right; font-size:10.5px; color:#06220f; background:var(--green); border-radius:99px; padding:1px 8px; margin-left:10px; font-weight:700; }
+#tooltip .t-syn { font:11.5px/1.5 Consolas,monospace; color:#86efac; background:#0d1220; border-radius:6px; padding:5px 8px; margin:6px 0; white-space:pre-wrap; }
+#tooltip .t-desc { font-size:11.5px; color:#c4cede; line-height:1.5; }
+#tooltip .t-more { font-size:10px; color:var(--muted); margin-top:5px; }
+
+/* ---- status bar ---- */
+.statusbar { display:flex; align-items:center; gap:16px; padding:4px 14px; background:var(--panel); border-top:1px solid var(--border); font-size:12px; flex-shrink:0; }
+.statusbar .sb-err { cursor:pointer; padding:2px 10px; border-radius:6px; user-select:none; }
+.statusbar .sb-err.bad { color:#fff; background:var(--red); font-weight:600; }
+.statusbar .sb-err.good { color:var(--green); }
+.statusbar .sb-pos { color:var(--muted); }
+
+/* ---- error dialog ---- */
+#err-dialog { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; }
+#err-dialog .box { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px 22px; width:min(640px,90vw); max-height:70vh; overflow-y:auto; }
+#err-dialog h3 { margin:0 0 10px; font-size:15px; }
+#err-dialog .e-row { display:flex; gap:12px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; cursor:pointer; align-items:baseline; }
+#err-dialog .e-row:hover { border-color:var(--red); background:rgba(239,68,68,.08); }
+#err-dialog .e-line { font:700 12px Consolas,monospace; color:var(--red); white-space:nowrap; }
+#err-dialog .e-msg { font-size:12.5px; color:#c4cede; }
+#err-dialog .e-src { font:11px Consolas,monospace; color:var(--muted); display:block; margin-top:3px; white-space:pre-wrap; }
+#err-dialog .hint { font-size:11px; color:var(--muted); margin:4px 0 12px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">🧬</span><b>SkillScript BASIC IDE</b><span class="ver">enterprise framework · MAP Studio</span>
+  <input id="skill-name" placeholder="Plug-in name *">
+  <select id="skill-target">
+    <option value="both">🧠⚙️ Both agents</option>
+    <option value="codex">🧠 Codex only</option>
+    <option value="claude">⚙️ Claude Code only</option>
+  </select>
+  <span class="spacer"></span>
+  <button class="btn" id="btn-new">🗋 New</button>
+  <button class="btn" id="btn-validate">✔ Validate</button>
+  <button class="btn primary" id="btn-run">▶ Run (Ctrl+Enter)</button>
+  <button class="btn success" id="btn-save">💾 Save plug-in (Ctrl+S)</button>
+  <span class="status-dot" id="status"></span>
+</div>
+
+<div class="main">
+  <div class="editor-col">
+    <div class="editor-wrap">
+      <div class="gutter" id="gutter">1</div>
+      <div class="code-area">
+        <pre id="hl"></pre>
+        <textarea id="code" spellcheck="false" autocomplete="off"></textarea>
+        <div id="tooltip"></div>
+      </div>
+    </div>
+    <div class="console">
+      <div class="console-head">
+        <span class="ctab active" data-c="output">📤 Output</span>
+        <span class="ctab" data-c="trace">🧾 Trace / Log</span>
+        <span class="ctab" data-c="problems">⚠ Problems</span>
+        <span class="spacer"></span>
+        <span id="run-meta"></span>
+      </div>
+      <div class="console-body" id="console-body">Ready. Press ▶ Run to execute your program in the sandbox.</div>
+    </div>
+    <div class="statusbar">
+      <span class="sb-err good" id="sb-err" title="Click to see the error list">✅ No errors</span>
+      <span class="sb-pos" id="sb-pos">Ln 1, Col 1</span>
+      <span class="spacer" style="flex:1"></span>
+      <span class="sb-pos">SkillScript BASIC · live syntax checking · hover words for tooltips</span>
+    </div>
+  </div>
+
+  <div class="help-col">
+    <div class="help-tabs">
+      <button class="active" data-h="tutorial">📖 Tutorial</button>
+      <button data-h="statements">⌨ Statements</button>
+      <button data-h="functions">ƒ Functions</button>
+      <button data-h="examples">💡 Examples</button>
+    </div>
+    <div class="help-search"><input id="help-q" placeholder="🔍 Search commands, keywords, functions… (e.g. FOR, HTTP, SPLIT)"></div>
+    <div class="help-body" id="help-body"></div>
+  </div>
+</div>
+
+<div id="err-dialog"><div class="box">
+  <h3>⚠ Problems</h3>
+  <p class="hint">Double-click a problem to jump to that line in the editor.</p>
+  <div id="err-list"></div>
+  <div style="text-align:right;margin-top:10px"><button class="btn" id="err-close">Close</button></div>
+</div></div>
+
+<script>
+"use strict";
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const api = async (path, opts={}) => {
+  const r = await fetch("/api" + path, { headers:{ "Content-Type":"application/json" }, credentials:"same-origin",
+    ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (!r.ok) { let d; try { d = (await r.json()).detail; } catch { d = r.statusText; } throw new Error(d); }
+  return r.json();
+};
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+/* ================= DOCS DATABASE ================= */
+const STMTS = [
+ { n:"PROGRAM / END PROGRAM", cat:"structure", syn:"PROGRAM MyPlugin\n  …statements…\nEND PROGRAM", d:"Every plug-in must start with PROGRAM <name>. This is how the platform recognizes a SkillScript program (vs a plain prompt skill). END PROGRAM (or END) finishes it.",
+   ex:'PROGRAM HelloWorld\nPRINT "Hello from my first plug-in!"\nEND PROGRAM', out:"Hello from my first plug-in!" },
+ { n:"PRINT / OUTPUT", cat:"output", syn:'PRINT expr [; expr…]\nOUTPUT expr', d:"Appends text to the program output — this output becomes the live instructions injected into the AI agents. Chain several values with ';'. A trailing ';' suppresses the newline. PRINT with nothing outputs a blank line.",
+   ex:'PRINT "Score: "; 95; " / 100"\nPRINT "Date: " & TODAY()', out:"Score: 95 / 100\nDate: 2026-08-08" },
+ { n:"LET (assignment)", cat:"variables", syn:"LET x = expr\nx = expr   ' LET is optional", d:"Creates or updates a variable. Names: letters, digits, underscore (must start with a letter). Values can be numbers, strings, booleans, lists or JSON objects.",
+   ex:'LET price = 19.99\nqty = 3\nLET total = price * qty\nPRINT "Total: $" & ROUND(total, 2)', out:"Total: $59.97" },
+ { n:"CONST", cat:"variables", syn:"CONST NAME = expr", d:"Declares a constant. Any later attempt to reassign it raises a script error — use for configuration values at the top of your program.",
+   ex:'CONST TAX_RATE = 0.0875\nCONST BRAND = "MAP Studio"\nPRINT BRAND & " tax: " & TAX_RATE * 100 & "%"', out:"MAP Studio tax: 8.75%" },
+ { n:"DIM (arrays)", cat:"variables", syn:"DIM a(n)\na(i) = expr    ' assign element\nPRINT a(i)     ' read element", d:"Creates an array with n empty slots (index 0 … n-1). You can also build lists with ARRAY(…) and grow them with APPEND().",
+   ex:'DIM scores(3)\nscores(0) = 85\nscores(1) = 92\nscores(2) = 78\nFOR i = 0 TO 2\n  PRINT "Player " & i+1 & ": " & scores(i)\nNEXT i', out:"Player 1: 85\nPlayer 2: 92\nPlayer 3: 78" },
+ { n:"IF / ELSEIF / ELSE / ENDIF", cat:"flow", syn:'IF cond THEN\n  …\nELSEIF cond2 THEN\n  …\nELSE\n  …\nENDIF\n\nIF cond THEN PRINT "inline form"', d:"Conditional branching. Conditions use = <> < <= > >= with AND, OR, NOT. Blocks can nest. The one-line inline form runs a single statement.",
+   ex:'LET score = 87\nIF score >= 90 THEN\n  PRINT "Grade: A"\nELSEIF score >= 80 THEN\n  PRINT "Grade: B"\nELSE\n  PRINT "Grade: C"\nENDIF', out:"Grade: B" },
+ { n:"SELECT CASE", cat:"flow", syn:"SELECT CASE expr\nCASE v1, v2\n  …\nCASE ELSE\n  …\nEND SELECT", d:"Multi-way branch on a value. A CASE can list several matching values separated by commas. CASE ELSE catches everything else.",
+   ex:'LET day = WEEKDAY()\nSELECT CASE day\nCASE "Saturday", "Sunday"\n  PRINT "Weekend mode: casual tone."\nCASE "Monday"\n  PRINT "Monday: include weekly plan."\nCASE ELSE\n  PRINT "Standard business tone."\nEND SELECT', out:"(depends on today)" },
+ { n:"FOR … NEXT", cat:"flow", syn:"FOR i = start TO end [STEP s]\n  …\nNEXT i", d:"Counted loop. STEP may be negative to count down. Use BREAK/EXIT FOR to leave early, CONTINUE to jump to the next iteration.",
+   ex:'FOR i = 10 TO 2 STEP -2\n  PRINT i;\n  PRINT " ";\nNEXT i', out:"10 8 6 4 2 " },
+ { n:"WHILE … WEND", cat:"flow", syn:"WHILE cond\n  …\nWEND", d:"Repeats while the condition is true (checked before each pass).",
+   ex:'LET n = 1\nWHILE n < 100\n  n = n * 3\nWEND\nPRINT "First power of 3 over 100: " & n', out:"First power of 3 over 100: 243" },
+ { n:"DO … LOOP WHILE/UNTIL", cat:"flow", syn:"DO\n  …\nLOOP WHILE cond\n' or: LOOP UNTIL cond", d:"Bottom-tested loop — the body always runs at least once. LOOP WHILE repeats while true; LOOP UNTIL repeats until true.",
+   ex:'LET tries = 0\nDO\n  tries = tries + 1\nLOOP UNTIL tries >= 3\nPRINT tries & " attempts"', out:"3 attempts" },
+ { n:"BREAK / CONTINUE / EXIT", cat:"flow", syn:"BREAK          ' leave the loop\nEXIT FOR       ' same\nEXIT WHILE\nCONTINUE       ' next iteration", d:"Loop control from inside FOR/WHILE/DO blocks.",
+   ex:'FOR i = 1 TO 10\n  IF i = 4 THEN CONTINUE\n  IF i > 6 THEN BREAK\n  PRINT i;\nNEXT i', out:"12356" },
+ { n:"GOTO / labels", cat:"flow", syn:"mylabel:\n…\nGOTO mylabel", d:"Jumps to a label (a name followed by a colon on its own line). Use sparingly — prefer structured loops. Great with ON ERROR GOTO for error handlers.",
+   ex:'LET x = 1\nagain:\nx = x * 2\nIF x < 32 THEN GOTO again\nPRINT x', out:"32" },
+ { n:"GOSUB / RETURN", cat:"flow", syn:"GOSUB mylabel\n…\nmylabel:\n  …\nRETURN", d:"Calls a subroutine at a label and comes back at RETURN. Nested GOSUBs are allowed (call stack).",
+   ex:'GOSUB header\nPRINT "body"\nGOSUB header\nEND\nheader:\n  PRINT "==="\nRETURN', out:"===\nbody\n===" },
+ { n:"SUB … END SUB / CALL", cat:"flow", syn:"SUB name\n  …\nEND SUB\n\nCALL name", d:"Named procedures — cleaner than GOSUB for reusable blocks. SUB bodies are skipped in normal flow and only run via CALL. Share data through variables.",
+   ex:'LET msg = "report"\nCALL banner\nPRINT "content here"\nCALL banner\nEND\nSUB banner\n  PRINT "-- " & UPPER(msg) & " --"\nEND SUB', out:"-- REPORT --\ncontent here\n-- REPORT --" },
+ { n:"ASK (AI call)", cat:"integration", syn:'ASK var = prompt_expr [SYSTEM sys_expr] [USING "codex"|"claude"|"api"]', d:"Calls an AI agent from your script and stores the reply in var. USING picks the engine (default codex). SYSTEM sets a system prompt. Limit: 5 AI calls per run. ⚠ Only executes in ▶ Test run — during prompt-injection the effects are disabled to avoid recursion.",
+   ex:'ASK ideas = "Give 3 catchy names for a coffee brand" USING "codex"\nPRINT ideas\n\nASK poem = "haiku about code" SYSTEM "You are a poet" USING "api"' },
+ { n:"HTTP GET / POST", cat:"integration", syn:'HTTP var = GET url_expr\nHTTP var = POST url_expr BODY body_expr', d:"Fetches web data into var (response capped at 1 MB, 30 s timeout). POST sends BODY as JSON when it's a list/object. HTTP_STATUS holds the last status code. Combine with JSONPARSE/JSONGET to consume APIs.",
+   ex:'HTTP raw = GET "https://api.github.com/repos/python/cpython"\nLET data = JSONPARSE(raw)\nPRINT "Stars: " & JSONGET(data, "stargazers_count")\nPRINT "Status: " & HTTP_STATUS' },
+ { n:"FILE READ / WRITE / APPEND", cat:"integration", syn:'FILE READ var = path_expr\nFILE WRITE path_expr, content_expr\nFILE APPEND path_expr, content_expr', d:"Text-file IO. Relative paths land in the platform data folder (data/skillfiles/). Access outside the data/images/files folders is blocked by the sandbox.",
+   ex:'FILE WRITE "notes.txt", "line 1"\nFILE APPEND "notes.txt", CHR(10) & "line 2"\nFILE READ back = "notes.txt"\nPRINT back', out:"line 1\nline 2" },
+ { n:"MEM SET / GET (persistent memory)", cat:"integration", syn:'MEM SET key_expr, value_expr\nMEM GET var = key_expr', d:"A persistent key→value store that survives between runs and between different plug-ins — perfect for counters, caches, and remembering state. Missing keys read as \"\".",
+   ex:'MEM GET count = "visits"\nLET count = VAL(count) + 1\nMEM SET "visits", count\nPRINT "This plug-in has run " & count & " times"' },
+ { n:"EMAIL", cat:"integration", syn:'EMAIL TO addr_expr SUBJECT subj_expr BODY body_expr', d:"Sends a real email through the configured SMTP settings. ⚠ Effect statement: runs in ▶ Test run only, not during prompt injection.",
+   ex:'IF WEEKDAY() = "Friday" THEN\n  EMAIL TO "boss@corp.com" SUBJECT "Weekly digest" BODY "All tasks complete."\nENDIF' },
+ { n:"INPUT", cat:"variables", syn:'INPUT varname [, "prompt"]', d:"Reads a named value from the run context into a variable (e.g. values the platform passes in, like user_input). Missing keys read as \"\".",
+   ex:'INPUT user_input\nIF CONTAINS(LOWER(user_input), "urgent") THEN\n  PRINT "* Treat this request as high priority."\nENDIF' },
+ { n:"LOG", cat:"debug", syn:"LOG expr", d:"Writes to the execution trace (visible in the 🧾 Trace tab) without touching the program output. Use for debugging.",
+   ex:'LOG "starting phase 2, items=" & COUNT(items)' },
+ { n:"ASSERT", cat:"debug", syn:'ASSERT cond [, message_expr]', d:"Stops the program with an error when the condition is false. Guard your assumptions early.",
+   ex:'INPUT user_input\nASSERT LEN(user_input) > 0, "no user input provided"' },
+ { n:"ON ERROR", cat:"errors", syn:"ON ERROR GOTO label\nON ERROR RESUME NEXT\nON ERROR STOP", d:"Error policy. GOTO jumps to a handler label on any error (ERR=1, ERRMSG holds the message). RESUME NEXT skips failing statements. STOP (default) aborts.",
+   ex:'ON ERROR GOTO handler\nHTTP data = GET "https://might-fail.example/api"\nPRINT "got data"\nEND\nhandler:\n  PRINT "Fetch failed: " & ERRMSG & " — using defaults."\nEND', out:"Fetch failed: … — using defaults." },
+ { n:"THROW / ABORT", cat:"errors", syn:'THROW expr\nABORT expr', d:"THROW raises a script error (catchable with ON ERROR). ABORT ends the program immediately with an error message (not catchable).",
+   ex:'IF NOT ISNUMBER(price) THEN THROW "price must be a number"' },
+ { n:"SLEEP", cat:"misc", syn:"SLEEP seconds", d:"Pauses execution (max 10 s per call). Useful to rate-limit API loops.",
+   ex:"SLEEP 0.5" },
+ { n:"END / STOP", cat:"structure", syn:"END\nSTOP", d:"Finishes the program successfully right there (output produced so far is kept).",
+   ex:'PRINT "done"\nEND\nPRINT "never reached"', out:"done" },
+ { n:"REM / ' (comments)", cat:"structure", syn:"REM full-line comment\n' also a comment", d:"Comment lines are ignored. Optional classic BASIC line numbers (10 PRINT …) are also accepted and stripped.",
+   ex:"' configuration:\nREM version 2\nCONST V = 2" },
+ { n:"TITLE / HEADER / BULLET / HR", cat:"output", syn:'TITLE expr     \' "# …" heading\nHEADER expr    \' "## …" heading\nBULLET expr    \' "* …" bullet\nHR ["char"]    \' horizontal rule', d:"Markdown output shortcuts — build well-structured instructions without manual formatting.",
+   ex:'TITLE "Weekly rules"\nHEADER "Formatting"\nBULLET "Use tables for numbers."\nHR "="', out:"# Weekly rules\n## Formatting\n* Use tables for numbers.\n========================================" },
+ { n:"CLS", cat:"output", syn:"CLS", d:"Clears all output produced so far — useful after a failed branch to start the instruction block fresh.",
+   ex:'PRINT "draft…"\nCLS\nPRINT "final output only"', out:"final output only" },
+ { n:"SWAP", cat:"variables", syn:"SWAP a, b", d:"Exchanges the values of two existing variables.",
+   ex:'LET a = 1\nLET b = 2\nSWAP a, b\nPRINT a & "," & b', out:"2,1" },
+ { n:"INC / DEC", cat:"variables", syn:"INC x [, amount]\nDEC x [, amount]", d:"Increment / decrement a numeric variable (default step 1). Non-existing variables start at 0.",
+   ex:'INC hits\nINC hits, 10\nDEC hits, 2\nPRINT hits', out:"9" },
+ { n:"PUSH / POP", cat:"variables", syn:"PUSH list, expr\nPOP var = list", d:"Stack operations: PUSH appends to a list variable; POP removes and returns the last item (\"\" when empty).",
+   ex:'LET stack = ARRAY(1, 2)\nPUSH stack, 3\nPOP top = stack\nPRINT top & " / " & COUNT(stack)', out:"3 / 2" },
+ { n:"RANDOMIZE", cat:"misc", syn:"RANDOMIZE [seed]", d:"Seeds the random generator — use a fixed seed for reproducible RND()/RANDINT() results in tests.",
+   ex:'RANDOMIZE 42\nPRINT RANDINT(1, 100)' },
+ { n:"NOP / BEEP", cat:"misc", syn:"NOP", d:"Does nothing — placeholder while sketching program structure.", ex:"NOP" },
+ { n:"SUMMARIZE", cat:"ai", syn:'SUMMARIZE var = text_expr [WORDS n]', d:"AI one-liner: summarizes the text into var. Optional WORDS sets the target length. Counts toward the 5 AI-calls/run limit; runs in ▶ Test run only.",
+   ex:'FILE READ doc = "report.txt"\nSUMMARIZE brief = doc WORDS 50\nPRINT "## Summary" & NL() & brief' },
+ { n:"TRANSLATE", cat:"ai", syn:'TRANSLATE var = text_expr TO "language"', d:"AI translation into any language.",
+   ex:'TRANSLATE fr = "Good morning team" TO "French"\nPRINT fr' },
+ { n:"SENTIMENT", cat:"ai", syn:'SENTIMENT var = text_expr', d:"AI sentiment analysis — var receives exactly: positive, negative or neutral.",
+   ex:'INPUT user_input\nSENTIMENT mood = user_input\nIF mood = "negative" THEN PRINT "* Use an empathetic, apologetic tone."' },
+ { n:"CLASSIFY", cat:"ai", syn:'CLASSIFY var = text_expr INTO "cat1, cat2, cat3"', d:"AI classification — picks exactly one of your categories.",
+   ex:'CLASSIFY kind = user_input INTO "bug report, feature request, question"\nPRINT "Ticket type: " & kind' },
+ { n:"EXTRACT", cat:"ai", syn:'EXTRACT var = text_expr FIELDS "name, email, amount"', d:"AI field extraction — var receives compact JSON with the requested fields. Combine with JSONPARSE/JSONGET.",
+   ex:'EXTRACT j = mailbody FIELDS "sender, order_id, total"\nLET d = JSONPARSE(j)\nPRINT "Order " & JSONGET(d, "order_id")' },
+ { n:"REWRITE / EXPAND / OUTLINE / PROOFREAD", cat:"ai", syn:'REWRITE var = text [STYLE expr]\nEXPAND var = notes [WORDS n]\nOUTLINE var = topic [DEPTH n]\nPROOFREAD var = text', d:"AI writing helpers: rewrite in a style, expand notes into prose, build a markdown outline, or fix grammar & spelling.",
+   ex:'REWRITE polite = draft STYLE "formal business English"\nPROOFREAD clean = polite\nPRINT clean' },
+ { n:"KEYWORDS / TITLEGEN / REPLYGEN", cat:"ai", syn:'KEYWORDS var = text [TOP n]\nTITLEGEN var = text [STYLE expr]\nREPLYGEN var = message [TONE expr]', d:"AI content helpers: extract keywords (comma-separated), generate a title, or draft a reply to a message.",
+   ex:'KEYWORDS tags = article TOP 8\nTITLEGEN head = article STYLE "click-worthy but honest"\nREPLYGEN answer = customer_mail TONE "friendly"' },
+ { n:"CODEGEN / SQLGEN", cat:"ai", syn:'CODEGEN var = task_expr [LANG "python"]\nSQLGEN var = request_expr [DIALECT "postgres"]', d:"AI code generation — var receives code only (no explanations).",
+   ex:'CODEGEN fn = "function to validate IBAN numbers" LANG "javascript"\nGENERATE TXT "iban.js", fn' },
+ { n:"IMAGE (AI image generation)", cat:"ai", syn:'IMAGE "file.png", "description of the image"', d:"Asks the AI agent to generate an image at the given path (inside the data sandbox). IMAGE_RESULT holds the agent's confirmation. ▶ Test run only.",
+   ex:'IMAGE "logo.png", "minimalist blue rocket logo, flat design, white background"\nPRINT IMAGE_RESULT' },
+ { n:"GENERATE (file generation)", cat:"files", syn:'GENERATE PDF path, content\nGENERATE DOCX|XLSX|PPTX path, content\nGENERATE HTML|TXT|MD|CSV|JSON|XML path, content', d:"Creates a real file in the data sandbox. PDF & DOCX take text (use # / ## for headings). XLSX & CSV take a list of row-lists. PPTX takes slides separated by --- (needs python-pptx). LAST_FILE holds the full path afterwards.",
+   ex:'GENERATE PDF "report.pdf", "# Q3 Report" & NL() & "Revenue grew 12%."\nGENERATE XLSX "data.xlsx", ARRAY(ARRAY("item","qty"), ARRAY("apples", 5))\nGENERATE MD "notes.md", "# Notes" & NL() & "* first point"\nPRINT "Saved: " & LAST_FILE' },
+ { n:"CHART (chart generation)", cat:"files", syn:'CHART "file.svg", "bar"|"line"|"pie", labels_list, values_list [, title]', d:"Renders a chart to an SVG file — bar, line or pie. Labels and values must be equal-length lists. LAST_FILE holds the path.",
+   ex:'LET l = ARRAY("Q1","Q2","Q3","Q4")\nLET v = ARRAY(120, 155, 143, 190)\nCHART "revenue.svg", "bar", l, v, "Revenue by quarter"\nPRINT "Chart at " & LAST_FILE' },
+ { n:"Statement aliases", cat:"structure", syn:"SAY / ECHO / WRITE / DISPLAY / SHOW / TELL → PRINT\nSET / VAR / DECLARE → LET       DEFINE → CONST\nWAIT / PAUSE / DELAY → SLEEP     JUMP → GOTO\nHALT / QUIT / FINISH / TERMINATE → END\nFAIL / PANIC / RAISE → THROW\nREQUIRE / VERIFY / EXPECT / CHECK → ASSERT\nDEBUG / TRACE / NOTE / INFO / WARN → LOG\nPERFORM / INVOKE → CALL          FETCH → HTTP\nQUERY / LLM / GPT → ASK", d:"Write in the vocabulary you prefer — 40+ alias keywords map onto the core statements, so scripts read naturally.",
+   ex:'SET name = "Peter"\nSAY "Hello " & name\nREQUIRE LEN(name) > 0, "name missing"\nNOTE "greeting emitted"\nFINISH' },
+];
+
+const FUNCS = [
+ ["String", [
+  ["LEN(x)", "Length of a string or list.", 'PRINT LEN("hello")   \' 5'],
+  ["UPPER(s) / LOWER(s)", "Upper/lower case.", 'PRINT UPPER("map studio")   \' MAP STUDIO'],
+  ["TRIM(s)", "Strip surrounding whitespace.", 'PRINT TRIM("  hi  ") & "!"   \' hi!'],
+  ["LEFT(s,n) / RIGHT(s,n)", "First / last n characters.", 'PRINT LEFT("SkillScript", 5)   \' Skill'],
+  ["MID(s,i,n)", "Substring: n chars starting at position i (1-based).", 'PRINT MID("abcdef", 2, 3)   \' bcd'],
+  ["REPLACE(s,a,b)", "Replace every a with b.", 'PRINT REPLACE("a-b-c", "-", "+")   \' a+b+c'],
+  ["SPLIT(s,sep) / JOIN(list,sep)", "String ⇄ list conversion.", 'LET p = SPLIT("x,y,z", ",")\nPRINT JOIN(p, " | ")   \' x | y | z'],
+  ["INSTR(s,sub)", "1-based position of sub (0 = not found).", 'PRINT INSTR("hello", "ll")   \' 3'],
+  ["CONTAINS / STARTSWITH / ENDSWITH", "Boolean string tests.", 'IF CONTAINS(msg, "error") THEN PRINT "found"'],
+  ["REPEAT(s,n)", "Repeat a string n times.", 'PRINT REPEAT("=", 20)'],
+  ["FORMAT(fmt,…)", "Python-style {} placeholders.", 'PRINT FORMAT("{} scored {}%", "Ann", 92)'],
+  ["CHR(n) / ASC(s)", "Char code conversions. CHR(10)=newline.", 'PRINT "a" & CHR(10) & "b"'],
+  ["LINES(s) / WORDS(s)", "Split into lines / whitespace words.", 'PRINT COUNT(LINES(text)) & " lines"'],
+ ]],
+ ["Numbers & math", [
+  ["STR(x) / VAL(s)", "Number ⇄ string. VAL of junk = 0.", 'PRINT VAL("42") + 1   \' 43'],
+  ["ABS / INT / ROUND(x[,d])", "Absolute, truncate, round to d decimals.", 'PRINT ROUND(3.14159, 2)   \' 3.14'],
+  ["MIN(…) / MAX(…)", "Smallest / largest of arguments.", 'PRINT MAX(3, 9, 5)   \' 9'],
+  ["SQR(x) / POW(a,b)", "Square root / power (also a ^ b).", 'PRINT SQR(144)   \' 12.0'],
+  ["RND() / RANDINT(a,b)", "Random float 0-1 / random integer a..b.", 'PRINT RANDINT(1, 6)   \' dice roll'],
+  ["ISNUMBER(x) / ISEMPTY(x)", "Type tests.", 'IF ISEMPTY(name) THEN name = "guest"'],
+  ["IIF(cond,a,b)", "Inline if — returns a when cond true else b.", 'PRINT IIF(score >= 60, "PASS", "FAIL")'],
+ ]],
+ ["Date & time", [
+  ["NOW() / TODAY() / TIMESTAMP()", "Datetime string / date / unix seconds.", 'PRINT "Generated " & NOW()'],
+  ["YEAR() MONTH() DAY() HOUR() MINUTE()", "Current date/time parts (numbers).", 'IF HOUR() < 12 THEN PRINT "Good morning"'],
+  ["WEEKDAY()", "Day name, e.g. \"Friday\".", 'IF WEEKDAY() = "Friday" THEN PRINT "weekly recap"'],
+  ["DATE$ / TIME$", "Built-in variables with current date/time.", 'PRINT DATE$ & " " & TIME$'],
+ ]],
+ ["Lists & JSON", [
+  ["ARRAY(…)", "Build a list literal.", 'LET fruits = ARRAY("apple", "kiwi", "fig")'],
+  ["APPEND(list,x)", "Push an item; returns the list.", 'APPEND(fruits, "plum")'],
+  ["COUNT / SUM / FIRST / LAST", "Aggregate helpers.", 'PRINT SUM(ARRAY(1,2,3))   \' 6'],
+  ["SORT / REVERSE / UNIQUE", "Return transformed copies.", 'PRINT JOIN(SORT(fruits), ", ")'],
+  ["SLICE(list,a[,b])", "Sub-list from index a (to b).", 'PRINT JOIN(SLICE(fruits, 0, 2), "+")'],
+  ["JSONPARSE(s)", "Parse a JSON string into an object/list.", 'LET d = JSONPARSE(raw)'],
+  ["JSONGET(obj,\"a.b.0\")", "Walk a JSON path (dots, list indices).", 'PRINT JSONGET(d, "items.0.name")'],
+  ["JSONSTR(obj)", "Serialize back to a JSON string.", 'HTTP r = POST url BODY JSONSTR(payload)'],
+ ]],
+ ["Regex, web & crypto", [
+  ["REGEXMATCH(s,pat)", "True when the regex is found.", 'IF REGEXMATCH(mail, "@corp\\\\.com$") THEN PRINT "internal"'],
+  ["REGEXEXTRACT(s,pat)", "First match, or \"\".", 'PRINT REGEXEXTRACT(text, "\\\\d{4}-\\\\d{2}-\\\\d{2}")'],
+  ["REGEXREPLACE(s,pat,rep)", "Regex substitution.", 'PRINT REGEXREPLACE(s, "\\\\s+", " ")'],
+  ["HASH(s)", "Short SHA-256 fingerprint (16 hex chars).", 'MEM SET "sig", HASH(content)'],
+  ["B64ENCODE / B64DECODE", "Base-64 conversion.", 'PRINT B64ENCODE("secret")'],
+  ["URLENCODE(s)", "Percent-encode for URLs.", 'HTTP r = GET "https://api.x.com/q?s=" & URLENCODE(query)'],
+  ["TYPEOF(x)", "Type name: str, int, float, list, dict, bool.", 'PRINT TYPEOF(d)'],
+ ]],
+ ["Advanced strings", [
+  ["CAPITALIZE / TITLECASE / SWAPCASE", "Case transforms.", 'PRINT TITLECASE("map studio rocks")'],
+  ["PADLEFT / PADRIGHT / CENTER / ZFILL", "Fixed-width padding.", 'PRINT PADLEFT("7", 3, "0")   \' 007'],
+  ["SQUEEZE / LTRIM / RTRIM", "Whitespace cleanup (SQUEEZE collapses runs).", 'PRINT SQUEEZE("a   b   c")   \' a b c'],
+  ["TRUNCATE(s,n[,suffix])", "Shorten with ellipsis.", 'PRINT TRUNCATE(desc, 60)'],
+  ["SLUG / CAMELCASE / SNAKECASE / KEBABCASE / PASCALCASE", "Identifier & URL casing.", 'PRINT SLUG("My Great Title!")   \' my-great-title'],
+  ["WRAP(s,n) / INDENT(s,n)", "Paragraph wrap & block indent.", 'PRINT WRAP(text, 60)'],
+  ["BEFORE / AFTER / BETWEEN", "Extract around separators.", 'PRINT BETWEEN("a[X]b", "[", "]")   \' X'],
+  ["REVERSESTR / COUNTSTR / REMOVE / INSERTSTR", "More editing helpers.", 'PRINT COUNTSTR("banana", "na")   \' 2'],
+  ["LEVENSHTEIN(a,b) / SIMILARITY(a,b)", "Edit distance / 0-1 similarity score.", 'IF SIMILARITY(input, "invoice") > 0.7 THEN PRINT "billing intent"'],
+  ["ISALPHA ISDIGIT ISALNUM ISUPPER ISLOWER ISSPACE", "Character-class tests.", 'IF ISDIGIT(code) THEN PRINT "numeric code"'],
+ ]],
+ ["Advanced math & stats", [
+  ["SIN COS TAN ASIN ACOS ATAN ATAN2 SINH COSH TANH", "Trigonometry (radians; DEG/RAD convert).", 'PRINT SIN(RAD(30))   \' 0.5'],
+  ["EXP / LN / LOG10 / LOG2 / CBRT / HYPOT", "Exponentials, logs, roots.", 'PRINT LOG10(1000)   \' 3.0'],
+  ["FLOOR / CEIL / SIGN / FRAC", "Rounding parts.", 'PRINT CEIL(2.1)   \' 3'],
+  ["GCD / LCM / FACT / COMB / PERM", "Integer math & combinatorics.", 'PRINT COMB(5, 2)   \' 10'],
+  ["CLAMP(x,lo,hi) / LERP(a,b,t) / MAPRANGE(x,a1,b1,a2,b2)", "Interpolation & range mapping.", 'PRINT CLAMP(score, 0, 100)'],
+  ["MEAN MEDIAN MODE STDEV VARIANCE PERCENTILE ZSCORE", "Statistics over lists.", 'PRINT MEAN(ARRAY(2,4,6))   \' 4.0'],
+  ["CHOICE / SHUFFLE / SAMPLE / UUID / RANDSTR", "Random picks & IDs.", 'PRINT CHOICE(ARRAY("red","blue"))'],
+ ]],
+ ["Advanced dates", [
+  ["DATEADD(d,n) / DATEDIFF(a,b)", "Date arithmetic in days.", 'PRINT DATEDIFF("2026-01-01", TODAY()) & " days into the year"'],
+  ["DATEFORMAT(d,fmt)", "Reformat a date (strftime codes).", 'PRINT DATEFORMAT("2026-08-08", "%d %B %Y")'],
+  ["QUARTER / WEEKNUM / DAYOFYEAR / MONTHNAME", "Calendar parts.", 'PRINT "Q" & QUARTER() & " week " & WEEKNUM()'],
+  ["ISLEAPYEAR / DAYSINMONTH / AGE", "Calendar checks.", 'PRINT AGE("1990-05-20") & " years old"'],
+  ["EPOCH2DATE / DATE2EPOCH", "Unix timestamp conversion.", 'PRINT EPOCH2DATE(TIMESTAMP())'],
+ ]],
+ ["Advanced lists & JSON", [
+  ["SORTDESC / NTH / INDEXOF / FLATTEN / ZIP", "More list tools.", 'PRINT NTH(SORTDESC(scores), 0)   \' highest'],
+  ["SEQ(a,b[,s]) / FILL(n,v) / TAKE / DROP / CHUNK", "Build & slice lists.", 'PRINT JOIN(SEQ(1, 5), ",")   \' 1,2,3,4,5'],
+  ["INTERSECT / UNIONL / DIFFERENCE / PRODUCT", "Set operations & product.", 'PRINT JOIN(INTERSECT(a, b), ",")'],
+  ["KEYS / VALUES / HASKEY / ISJSON", "Inspect JSON objects.", 'IF HASKEY(d, "error") THEN THROW JSONGET(d, "error")'],
+ ]],
+ ["Encoding, hashing & conversion", [
+  ["MD5 SHA1 SHA256 SHA512 CRC32", "Full-length digests.", 'PRINT SHA256("secret")'],
+  ["HEXENCODE / HEXDECODE / ROT13", "More codecs.", 'PRINT ROT13("HELLO")   \' URYYB'],
+  ["URLDECODE / HTMLESCAPE / HTMLUNESCAPE", "Web text safety.", 'PRINT HTMLESCAPE("<b>bold</b>")'],
+  ["BIN / OCT / HEXN / PARSEINT / PARSEFLOAT / TOBOOL", "Number base & type conversion.", 'PRINT BIN(10)   \' 1010'],
+  ["CURRENCY / PERCENTF / COMMA / FIXED", "Business formatting.", 'PRINT CURRENCY(1234567.891)   \' $1,234,567.89'],
+  ["ROMAN / UNROMAN", "Roman numerals.", 'PRINT ROMAN(2026)   \' MMXXVI'],
+  ["REGEXEXTRACTALL(s,pat)", "All regex matches as a list.", 'PRINT COUNT(REGEXEXTRACTALL(text, "\\\\d+"))'],
+ ]],
+ ["Units, finance, geometry & colors", [
+  ["C2F F2C KM2MI MI2KM KG2LB LB2KG M2FT FT2M L2GAL GAL2L", "Unit conversions.", 'PRINT ROUND(C2F(37), 1) & " °F"   \' 98.6 °F'],
+  ["PMT(rate,n,pv) / FV / PV / COMPOUND", "Loan payment, future/present value, compound interest.", 'PRINT CURRENCY(PMT(0.004, 360, 400000))'],
+  ["AREACIRCLE / AREARECT / AREATRI / PYTHAG", "Geometry.", 'PRINT ROUND(AREACIRCLE(5), 2)'],
+  ["RGB2HEX(r,g,b) / HEX2RGB(h)", "Color conversion.", 'PRINT RGB2HEX(59, 130, 246)   \' #3b82f6'],
+ ]],
+ ["Validation", [
+  ["ISEMAIL / ISURL / ISIP / ISPHONE / ISUUID / ISDATE", "Format validators — guard inputs before acting.", 'IF NOT ISEMAIL(to) THEN THROW "bad address: " & to'],
+  ["COALESCE(…) / DEFAULTVAL(x,d)", "First non-empty value / fallback default.", 'LET name = COALESCE(nickname, fullname, "guest")'],
+ ]],
+ ["Built-in variables", [
+  ["SKILL_NAME / TARGET", "Name of the skill; which agent it's building for (codex/claude).", 'PRINT "## " & SKILL_NAME & " for " & TARGET'],
+  ["USER_INPUT", "The user's current message (when provided by the platform).", 'IF CONTAINS(LOWER(USER_INPUT), "invoice") THEN PRINT "* Use the billing template."'],
+  ["NODE$", "Hostname of the machine running the script.", 'LOG "running on " & NODE$'],
+  ["ERR / ERRMSG", "Set after an error when using ON ERROR.", 'PRINT "code " & ERR & ": " & ERRMSG'],
+  ["HTTP_STATUS", "Status code of the last HTTP call.", 'IF HTTP_STATUS <> 200 THEN THROW "bad status"'],
+  ["LAST_FILE / IMAGE_RESULT", "Path of the last GENERATE/CHART file; result of the last IMAGE statement.", 'GENERATE MD "x.md", "# hi"\nPRINT LAST_FILE'],
+  ["TRUE / FALSE / NULL / PI", "Constants.", 'PRINT PI'],
+ ]],
+];
+
+const EXAMPLES = [
+ { t:"🌅 Daily briefing plug-in", d:"Adapts agent behaviour to the day of week and counts its own runs with persistent memory.",
+   c:`PROGRAM DailyBriefing
+PRINT "## Daily context (" & NOW() & ")"
+
+SELECT CASE WEEKDAY()
+CASE "Monday"
+  PRINT "* Start-of-week: summarize open tasks first."
+CASE "Friday"
+  PRINT "* End-of-week: add a weekly recap to every report."
+CASE "Saturday", "Sunday"
+  PRINT "* Weekend: casual tone, short answers."
+CASE ELSE
+  PRINT "* Mid-week: concise and actionable."
+END SELECT
+
+MEM GET runs = "briefing_runs"
+LET runs = VAL(runs) + 1
+MEM SET "briefing_runs", runs
+LOG "run #" & runs
+END PROGRAM` },
+ { t:"🌐 Live API data → instructions", d:"Fetches JSON from a web API and turns it into rules for the agents, with a fallback on failure.",
+   c:`PROGRAM MarketContext
+ON ERROR GOTO offline
+HTTP raw = GET "https://api.coindesk.com/v1/bpi/currentprice.json"
+LET data = JSONPARSE(raw)
+LET usd = JSONGET(data, "bpi.USD.rate")
+PRINT "* Current BTC price: $" & usd & " — cite this when asked about crypto."
+END
+offline:
+PRINT "* Live market data unavailable — say so instead of guessing prices."
+END PROGRAM` },
+ { t:"📋 Table & report formatter", d:"Uses loops, arrays and string functions to build a formatted rule block.",
+   c:`PROGRAM ReportRules
+CONST WIDTH = 40
+LET sections = ARRAY("Summary", "Findings", "Risks", "Next steps")
+
+PRINT REPEAT("=", WIDTH)
+PRINT "REPORT TEMPLATE — always use these sections in this order:"
+FOR i = 0 TO COUNT(sections) - 1
+  PRINT (i+1) & ". " & UPPER(sections(i))
+NEXT i
+PRINT REPEAT("=", WIDTH)
+PRINT "* Every table needs a one-line takeaway underneath."
+END PROGRAM` },
+ { t:"📄 Document factory: AI + PDF + XLSX + chart", d:"Summarizes input with AI, then generates a PDF report, a spreadsheet and an SVG chart in one run.",
+   c:`PROGRAM DocumentFactory
+INPUT user_input
+SUMMARIZE brief = user_input WORDS 60
+TITLEGEN head = brief
+
+' PDF report
+GENERATE PDF "report.pdf", "# " & head & NL() & NL() & brief
+PRINT "PDF: " & LAST_FILE
+
+' spreadsheet
+LET rows = ARRAY(ARRAY("metric", "value"), ARRAY("words", COUNT(WORDS(brief))), ARRAY("chars", LEN(brief)))
+GENERATE XLSX "stats.xlsx", rows
+PRINT "XLSX: " & LAST_FILE
+
+' chart
+CHART "stats.svg", "bar", ARRAY("words","chars"), ARRAY(COUNT(WORDS(brief)), LEN(brief)), "Text stats"
+PRINT "Chart: " & LAST_FILE
+END PROGRAM` },
+ { t:"🤖 AI-in-AI: sub-calls with ASK", d:"Delegates a sub-question to an agent and embeds the answer (test-run only; max 5 calls).",
+   c:`PROGRAM TrendAdvisor
+ASK trends = "List 3 current UX design trends, one line each" USING "codex"
+PRINT "## Design guidance (auto-generated " & TODAY() & ")"
+PRINT trends
+PRINT "* Apply these trends to any UI/design request."
+END PROGRAM` },
+ { t:"🗂 File-driven knowledge base", d:"Maintains a growing knowledge file and injects the last lines into every prompt.",
+   c:`PROGRAM KnowledgeBase
+' append today's marker, then inject the tail of the file
+FILE APPEND "kb.txt", CHR(10) & "[" & TODAY() & "] session"
+FILE READ kb = "kb.txt"
+LET recent = SLICE(LINES(kb), -5)
+PRINT "## Recent context:"
+PRINT JOIN(recent, CHR(10))
+END PROGRAM` },
+ { t:"🔁 Subroutines & validation", d:"SUB/CALL structure, ASSERT guards and error handling in one program.",
+   c:`PROGRAM QualityGate
+ON ERROR GOTO fail
+INPUT user_input
+ASSERT LEN(user_input) >= 0, "context missing"
+
+CALL header
+IF REGEXMATCH(LOWER(user_input), "deploy|release|production") THEN
+  PRINT "* HIGH RISK request — require explicit confirmation before acting."
+ENDIF
+CALL header
+END
+
+SUB header
+  PRINT REPEAT("-", 30)
+END SUB
+
+fail:
+PRINT "* (quality gate skipped: " & ERRMSG & ")"
+END PROGRAM` },
+];
+
+/* ================= HELP RENDERING ================= */
+const helpBody = $("#help-body");
+let helpTab = "tutorial";
+
+function docItem(s) {
+  return `<div class="doc-item" data-k="${esc((s.n + " " + s.d + " " + s.cat).toLowerCase())}">
+    <span class="cat">${esc(s.cat)}</span><span class="name">${esc(s.n)}</span>
+    <button class="btn ins" data-ins="${esc(s.ex || s.syn)}">⤵ Insert</button>
+    <code class="syntax">${esc(s.syn)}</code>
+    <div class="desc">${esc(s.d)}</div>
+    ${s.ex ? `<div class="ex-label">Example</div><pre class="ex">${esc(s.ex)}</pre>` : ""}
+    ${s.out ? `<div class="ex-label">Output</div><div class="out">${esc(s.out)}</div>` : ""}
+  </div>`;
+}
+
+function renderHelp() {
+  const q = $("#help-q").value.trim().toLowerCase();
+  if (helpTab === "tutorial") {
+    helpBody.innerHTML = `
+    <h3>Welcome to SkillScript BASIC</h3>
+    <p>SkillScript is the platform's <b>plug-in framework</b>: a sandboxed BASIC-style language. Your program runs whenever the AI agents build a prompt — and <b>everything you PRINT becomes live instructions</b> injected into Codex / Claude Code. That means plug-ins can compute, branch on the date, fetch web data, remember state and even call AI models.</p>
+
+    <div class="tut-step"><b>Step 1 — The skeleton</b>
+    <p>Every plug-in is wrapped in PROGRAM … END PROGRAM. Comments start with <kbd>'</kbd> or <kbd>REM</kbd>.</p>
+    <pre>PROGRAM MyFirstPlugin
+' this is a comment
+PRINT "Hello — I am injected into the AI prompt!"
+END PROGRAM</pre>
+    <p>Press <kbd>▶ Run</kbd> (or <kbd>Ctrl+Enter</kbd>) — the Output console shows exactly what the agents will receive.</p></div>
+
+    <div class="tut-step"><b>Step 2 — Variables & expressions</b>
+    <pre>LET name = "Peter"        ' LET is optional
+age = 30
+CONST COMPANY = "MAP Studio"
+PRINT name & " works at " & COMPANY
+PRINT "Next year: " & (age + 1)</pre>
+    <p><kbd>&amp;</kbd> joins strings. Math: <kbd>+ - * / \\ MOD ^</kbd>. Comparison: <kbd>= &lt;&gt; &lt; &lt;= &gt; &gt;=</kbd> with <kbd>AND OR NOT</kbd>.</p></div>
+
+    <div class="tut-step"><b>Step 3 — Making decisions</b>
+    <pre>IF HOUR() < 12 THEN
+  PRINT "* Greet the user with good morning."
+ELSEIF HOUR() < 18 THEN
+  PRINT "* Greet with good afternoon."
+ELSE
+  PRINT "* Greet with good evening."
+ENDIF</pre>
+    <p>For many branches on one value use <kbd>SELECT CASE</kbd> (see Statements tab).</p></div>
+
+    <div class="tut-step"><b>Step 4 — Loops</b>
+    <pre>FOR i = 1 TO 3
+  PRINT "Rule " & i & ": cite your sources."
+NEXT i
+
+LET n = 1
+WHILE n < 100
+  n = n * 2
+WEND
+PRINT n   ' 128</pre></div>
+
+    <div class="tut-step"><b>Step 5 — Functions everywhere</b>
+    <p>60+ built-ins work in any expression:</p>
+    <pre>PRINT UPPER(TRIM("  hi  "))          ' HI
+PRINT ROUND(2 / 3, 2)                ' 0.67
+PRINT JOIN(SORT(SPLIT("c,a,b", ",")), "-")   ' a-b-c
+PRINT IIF(RND() > 0.5, "heads", "tails")</pre>
+    <p>Browse them all in the <b>ƒ Functions</b> tab.</p></div>
+
+    <div class="tut-step"><b>Step 6 — Talk to the world</b>
+    <pre>' web APIs:
+HTTP raw = GET "https://api.example.com/stats"
+LET d = JSONPARSE(raw)
+PRINT "Users: " & JSONGET(d, "count")
+
+' files (kept inside the platform data folder):
+FILE WRITE "log.txt", "started " & NOW()
+
+' persistent memory across runs:
+MEM GET runs = "counter"
+MEM SET "counter", VAL(runs) + 1
+
+' ask an AI model (max 5 calls, test-run only):
+ASK tip = "One writing tip, one sentence" USING "codex"
+PRINT tip</pre></div>
+
+    <div class="tut-step"><b>Step 7 — Bulletproof it</b>
+    <pre>ON ERROR GOTO oops
+HTTP raw = GET "https://might-be-down.example"
+PRINT "live data: " & raw
+END
+oops:
+PRINT "* Data source offline (" & ERRMSG & ") — use cached values."
+END</pre>
+    <p><kbd>ASSERT</kbd>, <kbd>THROW</kbd> and <kbd>LOG</kbd> (→ 🧾 Trace tab) complete the toolbox.</p></div>
+
+    <div class="tut-step"><b>Step 8 — Ship it</b>
+    <p>① <kbd>✔ Validate</kbd> checks structure without running. ② <kbd>▶ Run</kbd> executes in the sandbox (20 000 steps / 120 s / 512 KB output limits). ③ <kbd>💾 Save plug-in</kbd> registers it as a skill — from then on it runs automatically on every agent request for its target. Prompt-injection runs disable ASK/HTTP-effects like EMAIL to stay fast and safe; use test runs to exercise those.</p></div>
+
+    <div class="tut-step"><b>Step 9 — AI power tools & file generation</b>
+    <p>Dedicated one-line AI statements (no prompt engineering needed) plus real file output:</p>
+    <pre>SUMMARIZE brief = longtext WORDS 40
+TRANSLATE fr = brief TO "French"
+SENTIMENT mood = user_input
+CLASSIFY kind = user_input INTO "bug, feature, question"
+EXTRACT j = mailbody FIELDS "sender, order_id, total"
+
+GENERATE PDF "report.pdf", "# Q3 Report" & NL() & brief
+GENERATE XLSX "data.xlsx", ARRAY(ARRAY("item","qty"), ARRAY("apples",5))
+CHART "rev.svg", "bar", ARRAY("Q1","Q2"), ARRAY(120,155), "Revenue"
+IMAGE "logo.png", "minimalist blue rocket logo"
+PRINT LAST_FILE</pre>
+    <p>All AI statements share the 5-calls-per-run limit and only execute in ▶ Test runs. GENERATE supports <kbd>PDF DOCX XLSX PPTX HTML TXT MD CSV JSON XML</kbd>.</p></div>
+
+    <h3>📚 All commands by category</h3>
+    <p><b>Structure:</b> <kbd>PROGRAM</kbd> <kbd>END PROGRAM</kbd> <kbd>END</kbd> <kbd>STOP</kbd> <kbd>ABORT</kbd> <kbd>REM</kbd> <kbd>'</kbd> <kbd>NOP</kbd> <kbd>BEEP</kbd></p>
+    <p><b>Variables:</b> <kbd>LET</kbd> <kbd>CONST</kbd> <kbd>DIM</kbd> <kbd>INPUT</kbd> <kbd>SWAP</kbd> <kbd>INC</kbd> <kbd>DEC</kbd> <kbd>PUSH</kbd> <kbd>POP</kbd></p>
+    <p><b>Output:</b> <kbd>PRINT</kbd> <kbd>OUTPUT</kbd> <kbd>TITLE</kbd> <kbd>HEADER</kbd> <kbd>BULLET</kbd> <kbd>HR</kbd> <kbd>CLS</kbd></p>
+    <p><b>Flow control:</b> <kbd>IF</kbd> <kbd>THEN</kbd> <kbd>ELSEIF</kbd> <kbd>ELSE</kbd> <kbd>ENDIF</kbd> <kbd>SELECT CASE</kbd> <kbd>CASE</kbd> <kbd>CASE ELSE</kbd> <kbd>END SELECT</kbd> <kbd>FOR</kbd> <kbd>TO</kbd> <kbd>STEP</kbd> <kbd>NEXT</kbd> <kbd>WHILE</kbd> <kbd>WEND</kbd> <kbd>DO</kbd> <kbd>LOOP WHILE</kbd> <kbd>LOOP UNTIL</kbd> <kbd>BREAK</kbd> <kbd>CONTINUE</kbd> <kbd>EXIT FOR</kbd> <kbd>EXIT WHILE</kbd> <kbd>EXIT DO</kbd> <kbd>GOTO</kbd> <kbd>GOSUB</kbd> <kbd>RETURN</kbd> <kbd>SUB</kbd> <kbd>END SUB</kbd> <kbd>CALL</kbd> <kbd>label:</kbd></p>
+    <p><b>AI:</b> <kbd>ASK</kbd> <kbd>SUMMARIZE</kbd> <kbd>TRANSLATE</kbd> <kbd>SENTIMENT</kbd> <kbd>CLASSIFY</kbd> <kbd>EXTRACT</kbd> <kbd>REWRITE</kbd> <kbd>EXPAND</kbd> <kbd>OUTLINE</kbd> <kbd>PROOFREAD</kbd> <kbd>KEYWORDS</kbd> <kbd>TITLEGEN</kbd> <kbd>REPLYGEN</kbd> <kbd>CODEGEN</kbd> <kbd>SQLGEN</kbd> <kbd>IMAGE</kbd></p>
+    <p><b>File generation:</b> <kbd>GENERATE PDF</kbd> <kbd>GENERATE DOCX</kbd> <kbd>GENERATE XLSX</kbd> <kbd>GENERATE PPTX</kbd> <kbd>GENERATE HTML</kbd> <kbd>GENERATE TXT</kbd> <kbd>GENERATE MD</kbd> <kbd>GENERATE CSV</kbd> <kbd>GENERATE JSON</kbd> <kbd>GENERATE XML</kbd> <kbd>CHART</kbd></p>
+    <p><b>Integration:</b> <kbd>HTTP GET</kbd> <kbd>HTTP POST</kbd> <kbd>BODY</kbd> <kbd>FILE READ</kbd> <kbd>FILE WRITE</kbd> <kbd>FILE APPEND</kbd> <kbd>MEM SET</kbd> <kbd>MEM GET</kbd> <kbd>EMAIL TO … SUBJECT … BODY …</kbd></p>
+    <p><b>Errors & debug:</b> <kbd>ON ERROR GOTO</kbd> <kbd>ON ERROR RESUME NEXT</kbd> <kbd>ON ERROR STOP</kbd> <kbd>THROW</kbd> <kbd>ASSERT</kbd> <kbd>LOG</kbd></p>
+    <p><b>Misc:</b> <kbd>SLEEP</kbd> <kbd>RANDOMIZE</kbd></p>
+    <p><b>Aliases (write it your way):</b> <kbd>SAY</kbd> <kbd>ECHO</kbd> <kbd>WRITE</kbd> <kbd>WRITELN</kbd> <kbd>DISPLAY</kbd> <kbd>SHOW</kbd> <kbd>TELL</kbd> <kbd>EMIT</kbd>→PRINT · <kbd>SET</kbd> <kbd>VAR</kbd> <kbd>DECLARE</kbd> <kbd>GLOBAL</kbd> <kbd>LOCAL</kbd>→LET · <kbd>DEFINE</kbd>→CONST · <kbd>WAIT</kbd> <kbd>PAUSE</kbd> <kbd>DELAY</kbd>→SLEEP · <kbd>REQUIRE</kbd> <kbd>VERIFY</kbd> <kbd>EXPECT</kbd> <kbd>CHECK</kbd>→ASSERT · <kbd>DEBUG</kbd> <kbd>TRACE</kbd> <kbd>NOTE</kbd> <kbd>INFO</kbd> <kbd>WARN</kbd>→LOG · <kbd>FAIL</kbd> <kbd>PANIC</kbd> <kbd>RAISE</kbd>→THROW · <kbd>HALT</kbd> <kbd>QUIT</kbd> <kbd>FINISH</kbd> <kbd>TERMINATE</kbd>→END · <kbd>JUMP</kbd>→GOTO · <kbd>PERFORM</kbd> <kbd>INVOKE</kbd>→CALL · <kbd>FETCH</kbd>→HTTP · <kbd>QUERY</kbd> <kbd>LLM</kbd> <kbd>GPT</kbd>→ASK</p>
+    <p><b>Operators:</b> <kbd>+ - * / \\ MOD ^ &amp; = &lt;&gt; &lt; &lt;= &gt; &gt;= AND OR NOT</kbd></p>
+    <p><b>Built-in variables:</b> <kbd>SKILL_NAME</kbd> <kbd>TARGET</kbd> <kbd>USER_INPUT</kbd> <kbd>DATE$</kbd> <kbd>TIME$</kbd> <kbd>NODE$</kbd> <kbd>ERR</kbd> <kbd>ERRMSG</kbd> <kbd>HTTP_STATUS</kbd> <kbd>LAST_FILE</kbd> <kbd>IMAGE_RESULT</kbd> <kbd>TRUE</kbd> <kbd>FALSE</kbd> <kbd>NULL</kbd> <kbd>PI</kbd></p>
+    <p>230+ functions across strings, math, trig, statistics, random, dates, lists, JSON, regex, hashing, encoding, conversion, units, finance, geometry, colors and validation — browse the <b>ƒ Functions</b> tab for every one with examples.</p>`;
+  } else if (helpTab === "statements") {
+    const items = STMTS.filter(s => !q || (s.n + s.d + s.cat + s.syn).toLowerCase().includes(q));
+    helpBody.innerHTML = `<p class="dim" style="font-size:12px;color:var(--muted)">${items.length} statements — click <b>⤵ Insert</b> to drop the example into the editor at the cursor.</p>` +
+      (items.map(docItem).join("") || "<p>No matches.</p>");
+  } else if (helpTab === "functions") {
+    helpBody.innerHTML = FUNCS.map(([cat, fns]) => {
+      const rows = fns.filter(f => !q || (f[0] + f[1] + f[2]).toLowerCase().includes(q));
+      if (!rows.length) return "";
+      return `<h3>${esc(cat)}</h3>` + rows.map(f => `<div class="doc-item">
+        <button class="btn ins" data-ins="${esc(f[2])}">⤵ Insert</button>
+        <span class="name" style="font-family:Consolas,monospace;font-size:12.5px;color:#a78bfa">${esc(f[0])}</span>
+        <div class="desc">${esc(f[1])}</div>
+        <pre class="ex">${esc(f[2])}</pre>
+      </div>`).join("");
+    }).join("") || "<p>No matches.</p>";
+  } else {
+    helpBody.innerHTML = EXAMPLES.filter(e => !q || (e.t + e.d + e.c).toLowerCase().includes(q))
+      .map(e => `<div class="doc-item">
+        <button class="btn ins" data-ins="${esc(e.c)}" data-full="1">📂 Open in editor</button>
+        <span class="name">${esc(e.t)}</span>
+        <div class="desc">${esc(e.d)}</div>
+        <pre class="ex">${esc(e.c)}</pre>
+      </div>`).join("") || "<p>No matches.</p>";
+  }
+}
+
+$$(".help-tabs button").forEach(b => b.onclick = () => {
+  $$(".help-tabs button").forEach(x => x.classList.toggle("active", x === b));
+  helpTab = b.dataset.h; renderHelp();
+});
+$("#help-q").oninput = renderHelp;
+helpBody.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ins]");
+  if (!b) return;
+  const code = $("#code");
+  if (b.dataset.full) {
+    if (code.value.trim() && !confirm("Replace the current program with this example?")) return;
+    code.value = b.dataset.ins;
+  } else {
+    const pos = code.selectionStart;
+    code.value = code.value.slice(0, pos) + b.dataset.ins + "\n" + code.value.slice(pos);
+  }
+  code.focus(); refresh(); scheduleLint(); setStatus("example inserted");
+});
+
+/* ================= EDITOR ================= */
+const KEYWORDS = /\b(PROGRAM|END\s+PROGRAM|END\s+SELECT|END\s+SUB|END\s+IF|SELECT\s+CASE|ON\s+ERROR|RESUME\s+NEXT|EXIT\s+FOR|EXIT\s+WHILE|EXIT\s+DO|FILE\s+READ|FILE\s+WRITE|FILE\s+APPEND|MEM\s+SET|MEM\s+GET|LET|CONST|DIM|PRINT|OUTPUT|INPUT|IF|THEN|ELSEIF|ELSE|ENDIF|CASE|FOR|TO|STEP|NEXT|WHILE|WEND|DO|LOOP|UNTIL|BREAK|CONTINUE|GOTO|GOSUB|RETURN|SUB|CALL|ASK|SYSTEM|USING|HTTP|GET|POST|BODY|EMAIL|SUBJECT|LOG|SLEEP|ASSERT|THROW|ABORT|END|STOP|REM|AND|OR|NOT|MOD|SWAP|INC|DEC|PUSH|POP|CLS|HR|TITLE|HEADER|BULLET|RANDOMIZE|NOP|BEEP|SAY|ECHO|WRITE|WRITELN|DISPLAY|SHOW|TELL|EMIT|WAIT|PAUSE|DELAY|SET|VAR|DECLARE|GLOBAL|LOCAL|DEFINE|HALT|QUIT|FINISH|TERMINATE|FAIL|PANIC|RAISE|REQUIRE|VERIFY|EXPECT|CHECK|DEBUG|TRACE|NOTE|INFO|WARN|JUMP|PERFORM|INVOKE|FETCH|QUERY|LLM|GPT|SUMMARIZE|TRANSLATE|SENTIMENT|CLASSIFY|EXTRACT|REWRITE|EXPAND|OUTLINE|PROOFREAD|KEYWORDS|TITLEGEN|REPLYGEN|CODEGEN|SQLGEN|IMAGE|GENERATE|CHART|WORDS|INTO|FIELDS|STYLE|TONE|LANG|DIALECT|TOP|DEPTH|PDF|DOCX|XLSX|PPTX|HTML|TXT|MD|CSV|JSON|XML)\b/gi;
+const FUNCRE = /\b(LEN|UPPER|LOWER|TRIM|LTRIM|RTRIM|LEFT|RIGHT|MID|REPLACE|SPLIT|JOIN|INSTR|LASTINSTR|CONTAINS|STARTSWITH|ENDSWITH|REPEAT|FORMAT|CHR|ASC|STR|VAL|ABS|INT|ROUND|MIN|MAX|SQR|CBRT|POW|EXP|LN|LOG10|LOG2|SIN|COS|TAN|ASIN|ACOS|ATAN|ATAN2|SINH|COSH|TANH|FLOOR|CEIL|SIGN|FRAC|GCD|LCM|FACT|COMB|PERM|CLAMP|LERP|MAPRANGE|DEG|RAD|HYPOT|RND|RANDINT|CHOICE|SHUFFLE|SAMPLE|UUID|RANDSTR|NOW|TODAY|TIMESTAMP|YEAR|MONTH|DAY|WEEKDAY|HOUR|MINUTE|SECOND|DATEADD|DATEDIFF|DATEFORMAT|DAYOFYEAR|WEEKNUM|ISLEAPYEAR|DAYSINMONTH|QUARTER|MONTHNAME|EPOCH2DATE|DATE2EPOCH|AGE|JSONPARSE|JSONGET|JSONSTR|ISJSON|KEYS|VALUES|HASKEY|ARRAY|APPEND|SORT|SORTDESC|REVERSE|COUNT|SUM|FIRST|LAST|NTH|INDEXOF|SLICE|UNIQUE|FLATTEN|ZIP|FILL|SEQ|TAKE|DROP|CHUNK|INTERSECT|UNIONL|DIFFERENCE|PRODUCT|LINES|WORDS|ISNUMBER|ISEMPTY|IIF|COALESCE|DEFAULTVAL|TYPEOF|HASH|MD5|SHA1|SHA256|SHA512|CRC32|B64ENCODE|B64DECODE|HEXENCODE|HEXDECODE|ROT13|URLENCODE|URLDECODE|HTMLESCAPE|HTMLUNESCAPE|REGEXMATCH|REGEXEXTRACT|REGEXEXTRACTALL|REGEXREPLACE|CAPITALIZE|TITLECASE|SWAPCASE|PADLEFT|PADRIGHT|CENTER|ZFILL|SQUEEZE|REVERSESTR|COUNTSTR|TRUNCATE|SLUG|CAMELCASE|SNAKECASE|KEBABCASE|PASCALCASE|WRAP|INDENT|QUOTE|UNQUOTE|BETWEEN|BEFORE|AFTER|REMOVE|INSERTSTR|SPACES|TAB|NL|ISALPHA|ISDIGIT|ISALNUM|ISUPPER|ISLOWER|ISSPACE|LEVENSHTEIN|SIMILARITY|MEAN|AVERAGE|MEDIAN|MODE|STDEV|VARIANCE|PERCENTILE|ZSCORE|PARSEINT|PARSEFLOAT|BIN|OCT|HEXN|TOBOOL|CURRENCY|PERCENTF|COMMA|FIXED|ROMAN|UNROMAN|C2F|F2C|KM2MI|MI2KM|KG2LB|LB2KG|M2FT|FT2M|L2GAL|GAL2L|PMT|FV|PV|COMPOUND|AREACIRCLE|AREARECT|AREATRI|PYTHAG|RGB2HEX|HEX2RGB|ISEMAIL|ISURL|ISIP|ISPHONE|ISUUID|ISDATE)(?=\s*\()/gi;
+
+function highlight(src) {
+  // tokenize strings & comments first to protect them
+  let out = "";
+  let ln = 0;
+  for (const line of src.split("\n")) {
+    ln++;
+    const isErr = errLines.has(ln);
+    const open = isErr ? '<span class="errline">' : "";
+    const close = isErr ? "</span>" : "";
+    let rest = line, html = "";
+    const cm = rest.match(/^(\s*)('|REM\b)/i);
+    if (cm) { out += `${open}<span class="com">${esc(line)}</span>${close}\n`; continue; }
+    const lb = rest.match(/^\s*[A-Za-z_][A-Za-z0-9_]*:\s*$/);
+    if (lb) { out += `${open}<span class="lbl">${esc(line)}</span>${close}\n`; continue; }
+    // split by strings
+    const parts = rest.split(/("(?:[^"\\]|\\.)*")/);
+    for (let i = 0; i < parts.length; i++) {
+      if (i % 2) { html += `<span class="str">${esc(parts[i])}</span>`; continue; }
+      let seg = parts[i];
+      const trailing = seg.match(/'(.*)$/);
+      let comment = "";
+      if (trailing) { comment = `<span class="com">${esc("'" + trailing[1])}</span>`; seg = seg.slice(0, trailing.index); }
+      let h = esc(seg);
+      h = h.replace(FUNCRE, m => `\u0001fn\u0002${m}\u0003`);
+      h = h.replace(KEYWORDS, m => `\u0001kw\u0002${m}\u0003`);
+      h = h.replace(/\b(\d+(\.\d+)?)\b/g, `\u0001num\u0002$1\u0003`);
+      h = h.replace(/\u0001(\w+)\u0002/g, '<span class="$1">').replace(/\u0003/g, "</span>");
+      html += h + comment;
+    }
+    out += open + html + close + "\n";
+  }
+  return out;
+}
+
+const code = $("#code"), hl = $("#hl"), gutter = $("#gutter");
+function refresh() {
+  hl.innerHTML = highlight(code.value) + "\n";
+  const n = code.value.split("\n").length;
+  gutter.innerHTML = Array.from({ length: n }, (_, i) =>
+    errLines.has(i + 1) ? `<span class="gerr">${i + 1}</span>` : String(i + 1)).join("\n");
+  syncScroll();
+  updatePos();
+}
+function syncScroll() { hl.scrollTop = code.scrollTop; hl.scrollLeft = code.scrollLeft; gutter.scrollTop = code.scrollTop; }
+code.addEventListener("input", () => { refresh(); scheduleLint(); tooltipCheck(); });
+code.addEventListener("scroll", () => { syncScroll(); hideTooltip(); });
+code.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { hideTooltip(); return; }
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const s = code.selectionStart;
+    code.value = code.value.slice(0, s) + "  " + code.value.slice(code.selectionEnd);
+    code.selectionStart = code.selectionEnd = s + 2;
+    refresh(); scheduleLint();
+  }
+  if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); runProgram(); }
+  if (e.ctrlKey && (e.key === "s" || e.key === "S")) { e.preventDefault(); saveSkill(); }
+});
+code.addEventListener("click", () => { updatePos(); hideTooltip(); });
+code.addEventListener("keyup", (e) => {
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Home","End"].includes(e.key)) { updatePos(); hideTooltip(); }
+});
+function updatePos() {
+  const upTo = code.value.slice(0, code.selectionStart).split("\n");
+  $("#sb-pos").textContent = `Ln ${upTo.length}, Col ${upTo[upTo.length - 1].length + 1}`;
+}
+
+/* ================= INTELLISENSE TOOLTIPS ================= */
+const RET_BY_CAT = {
+  "String":"string","Numbers & math":"number","Statistics":"number","Date & time":"string / number",
+  "Lists & JSON":"list / object","Regex, web & crypto":"string / boolean",
+  "Advanced strings":"string","Advanced math & stats":"number","Advanced dates":"string / number",
+  "Advanced lists & JSON":"list","Encoding, hashing & conversion":"string",
+  "Units, finance, geometry & colors":"number","Validation":"boolean","Built-in variables":"value",
+};
+const RET_OVERRIDE = {
+  LEN:"number", INSTR:"number", LASTINSTR:"number", COUNTSTR:"number", ASC:"number", VAL:"number",
+  CONTAINS:"boolean", STARTSWITH:"boolean", ENDSWITH:"boolean", ISALPHA:"boolean", ISDIGIT:"boolean",
+  ISALNUM:"boolean", ISUPPER:"boolean", ISLOWER:"boolean", ISSPACE:"boolean", ISNUMBER:"boolean",
+  ISEMPTY:"boolean", ISJSON:"boolean", HASKEY:"boolean", REGEXMATCH:"boolean", TOBOOL:"boolean",
+  SPLIT:"list", LINES:"list", WORDS:"list", REGEXEXTRACTALL:"list", KEYS:"list", VALUES:"list",
+  HEX2RGB:"list", JSONPARSE:"object / list", LEVENSHTEIN:"number", SIMILARITY:"number (0–1)",
+  TIMESTAMP:"number", YEAR:"number", MONTH:"number", DAY:"number", HOUR:"number", MINUTE:"number",
+  SECOND:"number", DATEDIFF:"number (days)", DATE2EPOCH:"number", AGE:"number", QUARTER:"number",
+  WEEKNUM:"number", DAYOFYEAR:"number", DAYSINMONTH:"number", ISLEAPYEAR:"boolean", ISDATE:"boolean",
+  ISEMAIL:"boolean", ISURL:"boolean", ISIP:"boolean", ISPHONE:"boolean", ISUUID:"boolean",
+  IIF:"either branch", TYPEOF:"string", STR:"string", CHR:"string", UUID:"string", RANDSTR:"string",
+  NOW:"string", TODAY:"string", WEEKDAY:"string", MONTHNAME:"string", RGB2HEX:"string",
+  UNROMAN:"number", RND:"number (0–1)", RANDINT:"number", CHOICE:"item", SHUFFLE:"list", SAMPLE:"list",
+  COUNT:"number", SUM:"number", PRODUCT:"number", INDEXOF:"number",
+};
+const TIPS = {};  // WORD -> {name, syn, desc, ret}
+STMTS.forEach(s => {
+  const ret = "statement — no return value";
+  // index every leading keyword token in the statement name
+  (s.n.match(/[A-Z][A-Z0-9]*(?=[\s/(]|$)/g) || []).forEach(w => {
+    if (!TIPS[w]) TIPS[w] = { name: s.n, syn: s.syn, desc: s.d, ret };
+  });
+});
+// alias tooltips point at their target statement docs
+const ALIAS_MAP = { SAY:"PRINT",ECHO:"PRINT",WRITE:"PRINT",WRITELN:"PRINT",DISPLAY:"PRINT",SHOW:"PRINT",TELL:"PRINT",EMIT:"PRINT",
+  WAIT:"SLEEP",PAUSE:"SLEEP",DELAY:"SLEEP",SET:"LET",VAR:"LET",DECLARE:"LET",GLOBAL:"LET",LOCAL:"LET",DEFINE:"CONST",
+  HALT:"END",QUIT:"END",FINISH:"END",TERMINATE:"END",FAIL:"THROW",PANIC:"THROW",RAISE:"THROW",
+  REQUIRE:"ASSERT",VERIFY:"ASSERT",EXPECT:"ASSERT",CHECK:"ASSERT",DEBUG:"LOG",TRACE:"LOG",NOTE:"LOG",INFO:"LOG",WARN:"LOG",
+  JUMP:"GOTO",PERFORM:"CALL",INVOKE:"CALL",FETCH:"HTTP",QUERY:"ASK",LLM:"ASK",GPT:"ASK" };
+Object.entries(ALIAS_MAP).forEach(([a, t]) => {
+  if (TIPS[t] && !TIPS[a]) TIPS[a] = { ...TIPS[t], name: `${a} (alias of ${t})` };
+});
+FUNCS.forEach(([cat, fns]) => fns.forEach(f => {
+  const sig = f[0];
+  (sig.match(/[A-Z][A-Z0-9$]*/g) || []).forEach(w => {
+    if (!TIPS[w]) TIPS[w] = { name: w, syn: sig, desc: f[1], ex: f[2],
+      ret: RET_OVERRIDE[w] || RET_BY_CAT[cat] || "value" };
+  });
+}));
+
+const tipEl = $("#tooltip");
+let charW = 0, lineH = 0;
+function measure() {
+  const probe = document.createElement("span");
+  probe.style.cssText = "position:absolute;visibility:hidden;font:13px/1.5 Consolas,Monaco,monospace;white-space:pre";
+  probe.textContent = "MMMMMMMMMM";
+  document.body.appendChild(probe);
+  charW = probe.getBoundingClientRect().width / 10;
+  lineH = 13 * 1.5;
+  probe.remove();
+}
+function currentWord() {
+  const pos = code.selectionStart;
+  const before = code.value.slice(0, pos);
+  const m = before.match(/([A-Za-z_][A-Za-z0-9_$]*)$/);
+  return m ? m[1] : "";
+}
+function tooltipCheck() {
+  const w = currentWord();
+  if (w.length < 2) { hideTooltip(); return; }
+  const W = w.toUpperCase();
+  let tip = TIPS[W];
+  let prefixNote = "";
+  if (!tip) {  // prefix match — show the first candidate
+    const cands = Object.keys(TIPS).filter(k => k.startsWith(W)).sort();
+    if (!cands.length) { hideTooltip(); return; }
+    tip = TIPS[cands[0]];
+    prefixNote = cands.length > 1 ? `+${cands.length - 1} more: ${cands.slice(1, 6).join(", ")}${cands.length > 6 ? "…" : ""}` : "";
+  }
+  const upTo = code.value.slice(0, code.selectionStart).split("\n");
+  const line = upTo.length - 1, col = upTo[upTo.length - 1].length;
+  const x = Math.min(col * charW + 14 - code.scrollLeft, code.clientWidth - 300);
+  const y = (line + 1) * lineH + 12 - code.scrollTop;
+  tipEl.innerHTML = `<span class="t-ret">→ ${esc(tip.ret)}</span><span class="t-name">${esc(tip.name)}</span>
+    <div class="t-syn">${esc(tip.syn)}</div>
+    <div class="t-desc">${esc(tip.desc)}</div>
+    ${tip.ex ? `<div class="t-syn" style="color:#c4cede">${esc(tip.ex)}</div>` : ""}
+    ${prefixNote ? `<div class="t-more">${esc(prefixNote)}</div>` : ""}`;
+  tipEl.style.left = Math.max(8, x) + "px";
+  tipEl.style.top = Math.max(4, y) + "px";
+  tipEl.style.display = "block";
+}
+function hideTooltip() { tipEl.style.display = "none"; }
+
+/* ================= LIVE LINTING ================= */
+let errLines = new Set();
+let errors = [];          // [{line, msg, src}]
+let lintTimer = null, lintSeq = 0;
+function stmtLineMap(src) {
+  // replicate the interpreter's parser: statement index -> 1-based line no
+  const map = [];
+  src.split("\n").forEach((raw, idx) => {
+    let s = raw.trim();
+    if (!s || s.startsWith("'")) return;
+    s = s.replace(/^\d+\s+/, "");
+    if (/^REM\b/i.test(s)) return;
+    map.push(idx + 1);
+  });
+  return map;
+}
+function scheduleLint() {
+  clearTimeout(lintTimer);
+  lintTimer = setTimeout(runLint, 500);
+}
+async function runLint() {
+  const seq = ++lintSeq;
+  const src = code.value;
+  if (!src.trim()) { errors = []; applyLint(src); return; }
+  let res;
+  try { res = await api("/skillscript/validate", { method: "POST", body: { code: src } }); }
+  catch { return; }
+  if (seq !== lintSeq || src !== code.value) return;   // stale
+  errors = [];
+  if (!res.ok) {
+    const map = stmtLineMap(src);
+    const srcLines = src.split("\n");
+    for (const e of res.errors) {
+      const m = String(e).match(/Statement (\d+)(?::\s*)?(.*)/);
+      let line = 1, msg = String(e);
+      if (m) { line = map[parseInt(m[1], 10) - 1] || 1; msg = m[2] || msg; }
+      else {
+        const sm = String(e).match(/statement (\d+)/i);
+        if (sm) line = map[parseInt(sm[1], 10) - 1] || 1;
+      }
+      errors.push({ line, msg, src: (srcLines[line - 1] || "").trim() });
+    }
+  }
+  applyLint(src);
+}
+function applyLint(src) {
+  errLines = new Set(errors.map(e => e.line));
+  refresh();
+  const sb = $("#sb-err");
+  if (errors.length) {
+    sb.className = "sb-err bad";
+    sb.textContent = `❌ ${errors.length} error${errors.length > 1 ? "s" : ""}`;
+    cData.problems = errors.map(e => `<span class="err">Line ${e.line}:</span> ${esc(e.msg)}`).join("\n");
+  } else {
+    sb.className = "sb-err good";
+    sb.textContent = "✅ No errors";
+    cData.problems = '<span class="ok">✅ no problems</span>';
+  }
+  if (cTab === "problems") setConsole("problems");
+}
+
+/* ---- error dialog & jump-to-line ---- */
+function gotoLine(n) {
+  const lines = code.value.split("\n");
+  let pos = 0;
+  for (let i = 0; i < n - 1 && i < lines.length; i++) pos += lines[i].length + 1;
+  code.focus();
+  code.selectionStart = pos;
+  code.selectionEnd = pos + (lines[n - 1] || "").length;
+  const y = (n - 1) * lineH;
+  code.scrollTop = Math.max(0, y - code.clientHeight / 2);
+  syncScroll(); updatePos();
+}
+function showErrDialog() {
+  const list = $("#err-list");
+  list.innerHTML = errors.length ? errors.map((e, i) => `
+    <div class="e-row" data-line="${e.line}" title="Double-click to jump to line ${e.line}">
+      <span class="e-line">Line ${e.line}</span>
+      <span class="e-msg">${esc(e.msg)}${e.src ? `<span class="e-src">${esc(e.src)}</span>` : ""}</span>
+    </div>`).join("")
+    : '<p class="ok" style="color:var(--green)">✅ No problems found — the program is valid.</p>';
+  $("#err-dialog").style.display = "flex";
+  $$(".e-row", list).forEach(r => {
+    r.ondblclick = () => { $("#err-dialog").style.display = "none"; gotoLine(parseInt(r.dataset.line, 10)); };
+    r.onclick = (ev) => { if (ev.detail === 1) setTimeout(() => {}, 0); };  // single click = select only
+  });
+}
+$("#sb-err").addEventListener("dblclick", showErrDialog);
+$("#sb-err").addEventListener("click", showErrDialog);
+$("#err-close").onclick = () => $("#err-dialog").style.display = "none";
+$("#err-dialog").addEventListener("click", (e) => { if (e.target.id === "err-dialog") e.currentTarget.style.display = "none"; });
+
+/* ================= CONSOLE ================= */
+const cbody = $("#console-body");
+let cData = { output: "Ready. Press ▶ Run to execute your program in the sandbox.", trace: "", problems: "" };
+let cTab = "output";
+function setConsole(tab) {
+  cTab = tab;
+  $$(".ctab").forEach(t => t.classList.toggle("active", t.dataset.c === tab));
+  cbody.innerHTML = cData[tab] || '<span class="dim">(empty)</span>';
+}
+$$(".ctab").forEach(t => t.onclick = () => setConsole(t.dataset.c));
+function setStatus(msg) { $("#status").textContent = msg; setTimeout(() => { if ($("#status").textContent === msg) $("#status").textContent = ""; }, 4000); }
+
+/* ================= ACTIONS ================= */
+async function validateProgram() {
+  try {
+    const r = await api("/skillscript/validate", { method: "POST", body: { code: code.value } });
+    if (r.ok) {
+      cData.problems = `<span class="ok">✅ Program "${esc(r.name)}" is valid — ${r.statements} statements.</span>` +
+        (r.subs.length ? `\nSUBs: ${esc(r.subs.join(", "))}` : "") +
+        (r.labels.length ? `\nLabels: ${esc(r.labels.join(", "))}` : "");
+    } else {
+      cData.problems = `<span class="err">❌ ${r.errors.length} problem(s):</span>\n` + r.errors.map(e => "  • " + esc(e)).join("\n");
+    }
+    setConsole("problems");
+  } catch (e) { cData.problems = `<span class="err">❌ ${esc(e.message)}</span>`; setConsole("problems"); }
+}
+async function runProgram() {
+  cData.output = '<span class="dim">⏳ Running in sandbox…</span>'; setConsole("output");
+  $("#run-meta").textContent = "";
+  try {
+    const r = await api("/skillscript/run", { method: "POST", body: { code: code.value, context: {} } });
+    if (r.ok) {
+      cData.output = esc(r.output || "") || '<span class="dim">(program produced no output — remember: PRINT output becomes the injected instructions)</span>';
+      cData.trace = r.trace.length ? esc(r.trace.join("\n")) : "";
+      cData.problems = '<span class="ok">✅ no problems</span>';
+      $("#run-meta").innerHTML = `<span class="ok">✅ ${r.ms} ms · ${r.steps} steps</span>`;
+    } else {
+      cData.output = (r.output ? esc(r.output) + "\n" : "") + `<span class="err">❌ ${esc(r.error)}</span>`;
+      cData.trace = r.trace && r.trace.length ? esc(r.trace.join("\n")) : "";
+      cData.problems = `<span class="err">❌ ${esc(r.error)}</span>`;
+      $("#run-meta").innerHTML = `<span class="err">❌ failed</span>`;
+    }
+    setConsole("output");
+  } catch (e) { cData.output = `<span class="err">❌ ${esc(e.message)}</span>`; setConsole("output"); }
+}
+let editingId = new URLSearchParams(location.search).get("skill") || null;
+async function saveSkill() {
+  const name = $("#skill-name").value.trim();
+  if (!name) { setStatus("⚠ enter a plug-in name first"); $("#skill-name").focus(); return; }
+  if (code.value.trim().length < 20) { setStatus("⚠ program is too short"); return; }
+  const body = { name, description: "SkillScript BASIC plug-in (created in the IDE)",
+    instructions: code.value, target: $("#skill-target").value, enabled: true };
+  try {
+    if (editingId) await api(`/skills/${editingId}`, { method: "PUT", body });
+    else { const r = await api("/skills", { method: "POST", body }); editingId = r.id; }
+    setStatus("💾 saved ✓ — plug-in is live");
+  } catch (e) { setStatus("❌ save failed: " + e.message); }
+}
+$("#btn-validate").onclick = validateProgram;
+$("#btn-run").onclick = runProgram;
+$("#btn-save").onclick = saveSkill;
+$("#btn-new").onclick = () => {
+  if (code.value.trim() && !confirm("Start a new program? Unsaved changes will be lost.")) return;
+  editingId = null; $("#skill-name").value = "";
+  code.value = STARTER; refresh(); scheduleLint(); setStatus("new program");
+};
+
+const STARTER = `PROGRAM MyPlugin
+' ═══ SkillScript BASIC plug-in ═══
+' Everything you PRINT becomes live instructions for the AI agents.
+' Open the 📖 Tutorial on the right to learn the language.
+
+PRINT "## Context generated " & NOW()
+
+IF WEEKDAY() = "Friday" THEN
+  PRINT "* End of week: include a recap section."
+ELSE
+  PRINT "* Keep answers short and actionable."
+ENDIF
+
+END PROGRAM`;
+
+/* ================= INIT ================= */
+(async function init() {
+  try { await api("/auth/me"); } catch { location.href = "/"; return; }
+  if (editingId) {
+    try {
+      const skills = await api("/skills");
+      const s = skills.find(x => x.id === editingId);
+      if (s) { $("#skill-name").value = s.name; $("#skill-target").value = s.target; code.value = s.instructions; }
+      else editingId = null;
+    } catch { editingId = null; }
+  }
+  if (!code.value) code.value = STARTER;
+  measure();
+  refresh(); renderHelp(); code.focus();
+  scheduleLint();
+})();
+</script>
+</body>
+</html>

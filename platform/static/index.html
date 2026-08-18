@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NexaCrew">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/nexacrew_logo.png">
+<title>NexaCrew — Virtual Company AI Agent Platform · by Sin Chi Chi · MAP Studio</title>
+<link rel="icon" type="image/png" href="/static/nexacrew_logo.png">
+<link rel="stylesheet" href="/static/style.css?v=1.14.1">
+</head>
+<body>
+<div id="install-screen" class="auth-screen hidden">
+  <div class="auth-card" style="max-width:560px">
+    <div class="auth-logo"><img src="/static/nexacrew_logo.png" alt="NexaCrew" class="brand-logo-xl"></div>
+    <h1>⚠ Client program required</h1>
+    <p class="muted">The <b>NexaCrew</b> client is <b>not installed</b> (or not running) on this computer.
+       For security, the platform can only be used from machines that have the client program installed.</p>
+    <div style="text-align:left;background:rgba(0,0,0,.15);border-radius:8px;padding:14px 18px;margin:14px 0">
+      <b>🔑 Install now with your license key</b>
+      <p class="muted" style="font-size:12.5px;margin:6px 0">Enter the license key provided by your administrator.
+         Each key works on one computer only.</p>
+      <div style="display:flex;gap:8px;margin:8px 0">
+        <input id="license-key" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" maxlength="23"
+               style="flex:1;font-family:Consolas,monospace;letter-spacing:1px;text-transform:uppercase">
+        <button id="license-verify" class="btn primary">✔ Verify key</button>
+      </div>
+      <p id="license-status" class="muted" style="font-size:12.5px;min-height:18px"></p>
+      <div id="install-actions" class="hidden" style="margin-top:8px">
+        <a id="dl-installer" class="btn primary" style="display:block;text-align:center;margin-bottom:8px;text-decoration:none">⬇ Download automatic installer (Windows)</a>
+        <a id="dl-installer-sh" class="btn" style="display:block;text-align:center;margin-bottom:8px;text-decoration:none">⬇ Download automatic installer (macOS / Linux)</a>
+        <a id="dl-package" class="btn" style="display:block;text-align:center;text-decoration:none">⬇ Download program package (.zip — all platforms)</a>
+        <div id="pkg-progress" class="hidden" style="margin-top:8px">
+          <div style="height:8px;border-radius:4px;background:rgba(148,163,184,.18);overflow:hidden">
+            <div id="pkg-progress-fill" style="height:100%;width:0%;border-radius:4px;background:#4f8ef7;transition:width .3s"></div>
+          </div>
+          <p id="pkg-progress-txt" class="muted" style="font-size:12px;margin:4px 0 0">Packaging…</p>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:8px">Run the installer — it downloads the program, configures the
+           connection to this server and starts it automatically. When the client is running, click <b>Check again</b>.</p>
+      </div>
+    </div>
+    <p id="install-status" class="muted" style="font-size:12.5px">Checking for a local installation…</p>
+    <button id="install-retry" class="btn" style="width:100%">🔄 Check again</button>
+    <div class="auth-footer">
+      <div class="auth-divider"></div>
+      <p class="auth-credit">Developed by <b>Sin Chi Chiu</b> · MAP Studio</p>
+      <div class="auth-support">
+        <span>☎ <a href="tel:+19493316528">+1-949-331-6528</a></span>
+        <span>✉ <a href="mailto:peterchiu@mapstudiousa.com">peterchiu@mapstudiousa.com</a></span>
+        <span>🌐 <a href="https://www.mapstudiousa.com" target="_blank" rel="noopener">www.mapstudiousa.com</a></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="auth-screen" class="auth-screen hidden">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="/static/nexacrew_logo.png" alt="NexaCrew" class="brand-logo-xl"></div>
+    <div class="auth-brand">NexaCrew</div>
+    <p id="auth-sub" class="auth-tagline">Virtual Company AI Agent Platform</p>
+    <h1 id="auth-title" class="auth-heading">Sign in</h1>
+    <label>Username<input id="auth-user" autocomplete="username"></label>
+    <label>Password<input id="auth-pass" type="password" autocomplete="current-password"></label>
+    <button id="auth-btn" class="btn primary" style="width:100%">Sign in</button>
+    <button id="auth-badge-btn" class="btn" style="width:100%;margin-top:8px">📷 Scan badge QR to sign in</button>
+    <p id="auth-err" class="error hidden"></p>
+    <div class="auth-footer">
+      <div class="auth-divider"></div>
+      <p class="auth-credit">Developed by <b>Sin Chi Chiu</b> · MAP Studio</p>
+      <div class="auth-support">
+        <span>☎ <a href="tel:+19493316528">+1-949-331-6528</a></span>
+        <span>✉ <a href="mailto:peterchiu@mapstudiousa.com">peterchiu@mapstudiousa.com</a></span>
+        <span>🌐 <a href="https://www.mapstudiousa.com" target="_blank" rel="noopener">www.mapstudiousa.com</a></span>
+      </div>
+      <span id="auth-ver" class="ver-line"></span>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <nav class="sidebar" aria-label="Main navigation">
+    <div class="brand brand-head">
+      <img src="/static/nexacrew_logo.png" alt="NexaCrew" class="brand-logo-nav">
+      <div class="brand-name">
+        <span>NexaCrew</span>
+        <small>by MAP Studio</small>
+      </div>
+    </div>
+    <div class="company-picker">
+      <select id="company-select" aria-label="Active company"></select>
+    </div>
+    <div class="nav-search" style="padding:6px 12px 2px">
+      <input id="nav-search" type="search" placeholder="🔍 Search menu…  (Ctrl+K)" autocomplete="off" aria-label="Search menu"
+        style="width:100%;padding:8px 10px;font-size:12.5px;background:#0b1220;border:1px solid #24304d;border-radius:8px;color:inherit;outline:none">
+    </div>
+    <div class="nav-group">Workspace</div>
+    <button class="nav-item active" data-view="dashboard">📊 Dashboard</button>
+    <button class="nav-item" data-view="chats">💬 Chats</button>
+    <button class="nav-item" data-view="projects">📁 Projects</button>
+    <button class="nav-item" data-view="tasks">✅ Tasks</button>
+    <button class="nav-item" data-view="calendar">📅 Calendar</button>
+    <button class="nav-item" data-view="email">📧 Email</button>
+    <button class="nav-item" data-view="business" id="nav-business">🏢 Business</button>
+    <button class="nav-item hidden" data-view="operations" id="nav-operations" data-nav-hidden="1">🏭 Operations</button>
+    <div id="nav-biz"></div>
+    <button class="nav-item" data-view="approvals">🔔 Approvals <span id="appr-badge" class="badge hidden"></span></button>
+    <div class="nav-group">Organization</div>
+    <button class="nav-item" data-view="companies">🏢 Companies</button>
+    <button class="nav-item" data-view="employees">👥 Employees</button>
+    <button class="nav-item" data-view="skills">🧩 Skills</button>
+    <button class="nav-item" data-view="schedules">⏰ Schedules</button>
+    <div class="nav-group">Operations</div>
+    <button class="nav-item" data-view="teams">🤝 Teams</button>
+    <button class="nav-item" data-view="workflows">🔁 Workflows</button>
+    <button class="nav-item" data-view="sops">📘 SOPs</button>
+    <button class="nav-item" data-view="shifts">🕑 Shift Roster</button>
+    <div class="nav-group">Administration</div>
+    <button class="nav-item" data-view="users" id="nav-users">👤 Users</button>
+    <button class="nav-item" data-view="clients" id="nav-clients">🖥 Clients</button>
+    <button class="nav-item" data-view="cluster">🖲 Cluster</button>
+    <button class="nav-item" data-view="backup">💾 Backup</button>
+    <button class="nav-item" data-view="audit">📜 Audit Log</button>
+    <div class="nav-group">System</div>
+    <button class="nav-item" data-view="sysstatus">📈 System Status</button>
+    <button class="nav-item" data-view="usage">📊 Token Usage</button>
+    <button class="nav-item" data-view="setup">🛠️ Setup <span id="setup-badge" class="badge hidden">!</span></button>
+    <button class="nav-item" data-view="settings">⚙️ Settings</button>
+    <div class="spacer"></div>
+    <button id="logout-btn" class="nav-item">🚪 Sign out</button>
+    <div class="sidebar-footer">
+      <div class="sf-brand">
+        <img src="/static/mapstudio_logo.jpg" alt="MAP Studio" class="sf-logo">
+        <div class="sf-brand-text">
+          <b>MAP Studio</b>
+          <small>Developed by Sin Chi Chiu</small>
+        </div>
+      </div>
+      <div class="sf-contact">
+        <a href="tel:+19493316528" title="Support telephone"><span class="sf-ic">☎</span>+1-949-331-6528</a>
+        <a href="mailto:peterchiu@mapstudiousa.com" title="Support email"><span class="sf-ic">✉</span>peterchiu@mapstudiousa.com</a>
+        <a href="https://www.mapstudiousa.com" target="_blank" rel="noopener" title="Website"><span class="sf-ic">🌐</span>www.mapstudiousa.com</a>
+      </div>
+      <span id="ver-line" class="ver-line"></span>
+    </div>
+  </nav>
+
+  <main class="content">
+    <header class="page-header">
+      <h2 id="page-title">Dashboard</h2>
+      <div id="context-banner" class="context-banner muted"></div>
+      <div id="whoami" style="margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:13px">
+        <span style="width:30px;height:30px;border-radius:50%;background:#1a4fa0;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px" id="whoami-ini"></span>
+        <b id="whoami-name"></b>
+      </div>
+    </header>
+    <div id="view" class="view" role="main"></div>
+  </main>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root" aria-live="polite"></div>
+<script src="/static/i18n.js?v=1.14.1"></script>
+<script src="/static/app.js?v=1.14.1"></script>
+</body>
+</html>

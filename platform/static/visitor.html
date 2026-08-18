@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Visitor Kiosk">
+<title>Visitor Kiosk</title>
+<style>
+  :root{--bg:#0a0f1c;--panel:#121b30;--line:#22304e;--fg:#e6edf8;--mut:#8296bb;
+        --acc:#3b82f6;--ok:#10b981;--err:#f43f5e;--warn:#f59e0b}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:radial-gradient(1000px 600px at 70% -10%,#14203c,var(--bg) 55%);
+       color:var(--fg);font:15px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;
+       min-height:100vh;min-height:100dvh;padding-top:env(safe-area-inset-top);
+       display:flex;flex-direction:column;touch-action:manipulation}
+  header{display:flex;align-items:center;gap:14px;padding:12px 22px;
+         border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.08em}
+  header b{font-size:14px}
+  .led{width:10px;height:10px;border-radius:50%;background:var(--err)}
+  .led.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  #clock{margin-left:auto;font-family:Consolas,monospace}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:26px}
+  .card{background:linear-gradient(165deg,var(--panel),#0e1730);border:1px solid var(--line);
+        border-radius:22px;padding:38px 42px;width:600px;max-width:96vw;
+        box-shadow:0 8px 40px rgba(0,0,0,.5)}
+  h1{font-size:24px;margin-bottom:6px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:24px}
+  label{display:block;margin:14px 0 5px;font-size:10.5px;letter-spacing:.14em;
+        color:var(--mut);text-transform:uppercase;font-weight:700}
+  input,select,textarea{width:100%;font:inherit;color:inherit;background:#0b1220;
+        border:1.5px solid var(--line);border-radius:12px;padding:13px;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+  button{font:inherit;color:#fff;background:linear-gradient(135deg,var(--acc),#2563eb);
+         border:none;border-radius:14px;padding:15px 30px;font-weight:700;cursor:pointer;
+         font-size:15px;width:100%;margin-top:20px}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+  button:active{transform:scale(.98)}
+  .privacy{background:#0b1220;border:1px solid var(--line);border-radius:12px;
+           padding:16px;font-size:12.5px;color:var(--mut);max-height:180px;overflow-y:auto}
+  .consent{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:13px}
+  .consent input{width:auto;margin-top:3px}
+  .big-status{text-align:center;padding:20px 0}
+  .big-status .icon{font-size:70px}
+  .big-status h2{font-size:26px;margin:10px 0 4px}
+  .langs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .langs button{width:auto;margin:0;padding:10px 20px;font-size:14px}
+  .langs button.ghost.sel{border-color:var(--acc);color:var(--acc)}
+  .err{color:var(--err);font-weight:600;margin-top:12px}
+  /* ---- enterprise chrome ---- */
+  .steps{display:flex;align-items:center;gap:0;margin:2px 0 22px}
+  .step{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.1em;
+        color:var(--mut);font-weight:700;text-transform:uppercase}
+  .step .dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+        border:1.5px solid var(--line);background:#0b1220;font-size:12px;font-weight:800}
+  .step.on{color:var(--acc)} .step.on .dot{border-color:var(--acc);color:var(--acc);box-shadow:0 0 10px rgba(59,130,246,.35)}
+  .step.done{color:var(--ok)} .step.done .dot{border-color:var(--ok);color:var(--ok)}
+  .step-line{flex:1;height:1.5px;background:var(--line);margin:0 12px;min-width:26px}
+  .brandbar{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+  .brandbar .mark{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+        font-size:24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);box-shadow:0 4px 18px rgba(59,130,246,.35)}
+  .kicker{font-size:10px;letter-spacing:.22em;color:var(--mut);font-weight:700;text-transform:uppercase}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  .sect{display:flex;align-items:center;gap:10px;margin:22px 0 2px;font-size:10px;
+        letter-spacing:.18em;color:var(--acc);font-weight:800;text-transform:uppercase}
+  .sect::after{content:"";flex:1;height:1px;background:var(--line)}
+  .consent-card{display:flex;gap:12px;align-items:flex-start;margin-top:12px;font-size:13px;
+        background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .15s}
+  .consent-card.ok{border-color:var(--ok)}
+  .consent-card input{width:20px;height:20px;margin-top:1px;accent-color:var(--acc);flex:none}
+  .cta{display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.08em}
+  .assist{font-size:11px;color:var(--mut);text-align:center;margin-top:14px;letter-spacing:.04em}
+  footer{padding:10px 22px;border-top:1px solid var(--line);font-size:10.5px;
+         color:var(--mut);text-align:center;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<header><b>🛂 VISITOR MANAGEMENT</b><span class="led" id="led"></span>
+  <span id="conn">NOT ENROLLED</span><span id="clock">—</span></header>
+<main><div class="card" id="stage"></div></main>
+<footer>PRIVACY BY DESIGN — identity numbers are encrypted, masked to staff, never printed on
+badges or receipts, and deleted according to the site's retention policy.</footer>
+
+<script>
+"use strict";
+const $=(s)=>document.querySelector(s);
+let CRED=localStorage.getItem("visitorCred")||"",VISIT=null,LANG="en",POLL=null,FORM=null,PHOTOS=[];
+setInterval(()=>$("#clock").textContent=new Date().toLocaleString(),1000);
+const led=(ok)=>{$("#led").className="led "+(ok?"ok":"");$("#conn").textContent=ok?"ENROLLED":"NOT ENROLLED";};
+
+const T={
+ en:{welcome:"Welcome — Visitor Check-In",lang:"Language",cat:"Visitor type",name:"Your full name",
+     host:"Who are you visiting? (host)",purpose:"Purpose of visit",dest:"Destination / department",
+     doc:"Identity document (per site policy)",docnum:"Document number",register:"REQUEST ACCESS ▶",
+     privacy:"Privacy notice: the information you provide is used only to manage your visit. Identity numbers are encrypted and masked; document data is retained only as long as site policy requires, then deleted. You may request correction or deletion where the law provides these rights.",
+     consent:"I have read the privacy notice and consent to this processing.",
+     waiting:"Waiting for host approval…",approved:"APPROVED — badge issued",
+     denied:"Access denied — please see reception",checkout:"CHECK OUT",done:"Thank you — checked out!",
+     photoTitle:"Face photo",photoSub:"Position your face inside the oval — the photo is captured automatically.",
+     photoHold:"HOLD STILL…",photoLook:"POSITION YOUR FACE IN THE OVAL",photoGot:"CAPTURED ✓",
+     photoRetake:"↺ RETAKE",photoUse:"USE THIS PHOTO ▶",photoCam:"Camera unavailable — continue without photo",photoSkip:"CONTINUE WITHOUT PHOTO",
+     gateQ:"Have you visited us before?",gateYes:"✅ YES — I've been here before",gateNo:"🆕 NO — first visit",
+     gateYesSub:"Quick check-in with face recognition",gateNoSub:"Full registration (2–3 minutes)",
+     recogScan:"Look at the camera — finding your record…",recogHit:"Welcome back",
+     recogMiss:"We couldn't find your record — please register.",recogConfirm:"✅ THAT'S ME — CHECK IN ▶",
+     recogNotMe:"✕ Not me — register instead",recogLast:"Last visit"},
+ es:{welcome:"Bienvenido — Registro de visitantes",lang:"Idioma",cat:"Tipo de visitante",name:"Nombre completo",
+     host:"¿A quién visita? (anfitrión)",purpose:"Motivo de la visita",dest:"Destino / departamento",
+     doc:"Documento de identidad (según política)",docnum:"Número de documento",register:"SOLICITAR ACCESO ▶",
+     privacy:"Aviso de privacidad: su información se usa solo para gestionar su visita. Los números de identidad se cifran y se enmascaran; los datos se conservan solo el tiempo que exige la política del sitio.",
+     consent:"He leído el aviso de privacidad y doy mi consentimiento.",
+     waiting:"Esperando aprobación del anfitrión…",approved:"APROBADO — credencial emitida",
+     denied:"Acceso denegado — acuda a recepción",checkout:"SALIDA",done:"¡Gracias — salida registrada!",
+     photoTitle:"Foto del rostro",photoSub:"Coloque su rostro dentro del óvalo — la foto se captura automáticamente.",
+     photoHold:"NO SE MUEVA…",photoLook:"COLOQUE SU ROSTRO EN EL ÓVALO",photoGot:"CAPTURADA ✓",
+     photoRetake:"↺ REPETIR",photoUse:"USAR ESTA FOTO ▶",photoCam:"Cámara no disponible — continuar sin foto",photoSkip:"CONTINUAR SIN FOTO",
+     gateQ:"¿Nos ha visitado antes?",gateYes:"✅ SÍ — he estado aquí antes",gateNo:"🆕 NO — primera visita",
+     gateYesSub:"Registro rápido con reconocimiento facial",gateNoSub:"Registro completo (2–3 minutos)",
+     recogScan:"Mire a la cámara — buscando su registro…",recogHit:"Bienvenido de nuevo",
+     recogMiss:"No encontramos su registro — por favor regístrese.",recogConfirm:"✅ SOY YO — REGISTRAR ENTRADA ▶",
+     recogNotMe:"✕ No soy yo — registrarme",recogLast:"Última visita"},
+ zh:{welcome:"歡迎 — 訪客登記",lang:"語言",cat:"訪客類型",name:"姓名",host:"拜訪對象（接待人）",
+     purpose:"到訪目的",dest:"目的地 / 部門",doc:"身份證件（依場所政策）",docnum:"證件號碼",
+     register:"申請進入 ▶",privacy:"隱私聲明：您提供的資料僅用於管理您的到訪。證件號碼會被加密及遮罩，並依場所保留政策刪除。",
+     consent:"我已閱讀隱私聲明並同意處理。",waiting:"等待接待人批准…",approved:"已批准 — 已發出訪客證",
+    denied:"拒絕進入 — 請洽接待處",checkout:"簽退",done:"謝謝 — 已完成簽退！",
+    photoTitle:"臉部相片",photoSub:"請將臉部對準橢圓區域 — 相片將自動拍攝。",
+    photoHold:"請保持不動…",photoLook:"請將臉部置於橢圓內",photoGot:"已拍攝 ✓",
+    photoRetake:"↺ 重拍",photoUse:"使用此相片 ▶",photoCam:"相機無法使用 — 繼續而不拍照",photoSkip:"繼續而不拍照",
+    gateQ:"您之前來過嗎？",gateYes:"✅ 是 — 我來過",gateNo:"🆕 否 — 首次到訪",
+    gateYesSub:"人臉辨識快速簽到",gateNoSub:"完整登記（2–3 分鐘）",
+    recogScan:"請注視鏡頭 — 正在查找您的記錄…",recogHit:"歡迎回來",
+    recogMiss:"找不到您的記錄 — 請重新登記。",recogConfirm:"✅ 是我 — 立即簽到 ▶",
+    recogNotMe:"✕ 不是我 — 重新登記",recogLast:"上次到訪"}};
+const t=(k)=>T[LANG][k]||T.en[k];
+
+function enrollView(){
+  $("#stage").innerHTML=`<h1>🛂 Visitor Kiosk</h1>
+    <p class="sub">DEVICE ENROLLMENT — enter the single-use code from your administrator.</p>
+    <input id="code" placeholder="ek-…" style="font-family:Consolas,monospace;text-align:center">
+    <button id="go">🔐 ENROLL THIS DEVICE</button><p class="err" id="e" style="display:none"></p>`;
+  $("#go").onclick=async()=>{
+    try{
+      const r=await fetch("/api/workforce/enroll",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({code:$("#code").value.trim(),client_info:navigator.userAgent.slice(0,150)})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.detail||"Enrollment failed");
+      CRED=d.credential;localStorage.setItem("visitorCred",CRED);led(true);gateView();
+    }catch(e){$("#e").textContent="❌ "+e.message;$("#e").style.display="block";}
+  };
+}
+
+function stepper(n){
+  const S=[["1","Details"],["2","Photo"],["3","Approval"]];
+  return `<div class="steps">${S.map(([i,l],k)=>`${k?'<span class="step-line"></span>':""}
+    <span class="step ${k+1===n?"on":k+1<n?"done":""}"><span class="dot">${k+1<n?"✓":i}</span>${l}</span>`).join("")}</div>`;
+}
+
+function gateView(){
+  VISIT=null;clearInterval(POLL);stopFaceCam&&stopFaceCam();
+  $("#stage").innerHTML=`
+    <div class="brandbar"><div class="mark">🛂</div>
+      <div><div class="kicker">Secure Visitor Management</div>
+      <h1 style="margin:0">${t("welcome")}</h1></div></div>
+    <label>${t("lang")}</label>
+    <div class="langs">
+      <button class="ghost ${LANG==="en"?"sel":""}" data-l="en">🇺🇸 English</button>
+      <button class="ghost ${LANG==="es"?"sel":""}" data-l="es">🇪🇸 Español</button>
+      <button class="ghost ${LANG==="zh"?"sel":""}" data-l="zh">🇹🇼 中文</button></div>
+    <h2 style="text-align:center;margin:26px 0 18px">${t("gateQ")}</h2>
+    <button id="g-yes" style="padding:20px;font-size:16px">${t("gateYes")}
+      <span style="display:block;font-size:11px;opacity:.65;font-weight:400;margin-top:4px">${t("gateYesSub")}</span></button>
+    <button id="g-no" class="ghost" style="margin-top:12px;padding:20px;font-size:16px">${t("gateNo")}
+      <span style="display:block;font-size:11px;opacity:.65;font-weight:400;margin-top:4px">${t("gateNoSub")}</span></button>`;
+  document.querySelectorAll(".langs button").forEach(b=>b.onclick=()=>{LANG=b.dataset.l;gateView();});
+  $("#g-yes").onclick=returningView;
+  $("#g-no").onclick=formView;
+}
+
+/* Returning visitor — face-api.js is used ONLY to detect/capture a live,
+   well-framed face in the kiosk browser. The captured frame is sent to the
+   server where the face_recognition (dlib) stack makes the identity
+   decision. */
+let FA=null,FA_LOADING=null;
+function loadFaceApi(){
+  if(FA)return Promise.resolve(FA);
+  if(FA_LOADING)return FA_LOADING;
+  FA_LOADING=(async()=>{
+    await new Promise((res,rej)=>{const s=document.createElement("script");
+      s.src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js";
+      s.onload=res;s.onerror=()=>rej(new Error("face-api load failed"));document.head.appendChild(s);});
+    const MODELS="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model";
+    // SSD MobileNet = much more robust detector; Tiny kept as 2nd chance.
+    // Landmark net locates eyes/nose/mouth/jaw; recognition net encodes the
+    // aligned face (shape + eye/nose/mouth geometry) into a 128-d embedding.
+    await Promise.all([
+      window.faceapi.nets.ssdMobilenetv1.loadFromUri(MODELS),
+      window.faceapi.nets.tinyFaceDetector.loadFromUri(MODELS),
+      window.faceapi.nets.faceLandmark68Net.loadFromUri(MODELS),
+      window.faceapi.nets.faceRecognitionNet.loadFromUri(MODELS)]);
+    FA=window.faceapi;return FA;
+  })();
+  return FA_LOADING;
+}
+async function faceDescriptor(input){       // → Float32Array(128) or null
+  // try SSD first (robust to lighting), then Tiny with permissive settings
+  let det=await FA.detectSingleFace(input,new FA.SsdMobilenetv1Options({minConfidence:0.20}))
+    .withFaceLandmarks().withFaceDescriptor();
+  if(!det)det=await FA.detectSingleFace(input,new FA.TinyFaceDetectorOptions({inputSize:512,scoreThreshold:0.15}))
+    .withFaceLandmarks().withFaceDescriptor();
+  return det?det.descriptor:null;
+}
+/* Video frames go through a canvas: some browsers fail face-api detection
+   directly on a CSS-transformed <video>, and dim rooms need a brightness
+   boost. Returns descriptor from the plain frame, then from a brightened/
+   contrast-enhanced copy if the plain one finds nothing. */
+async function descriptorFromVideo(video){
+  const c=document.createElement("canvas");
+  c.width=video.videoWidth;c.height=video.videoHeight;
+  const ctx=c.getContext("2d");
+  ctx.drawImage(video,0,0);
+  let d=await faceDescriptor(c);
+  if(d)return d;
+  ctx.filter="brightness(1.5) contrast(1.15)";
+  ctx.drawImage(video,0,0);
+  ctx.filter="none";
+  d=await faceDescriptor(c);
+  if(d)return d;
+  ctx.filter="brightness(2.0) contrast(1.25)";
+  ctx.drawImage(video,0,0);
+  ctx.filter="none";
+  return faceDescriptor(c);
+}
+
+
+async function returningView(){
+  stopFaceCam();
+  $("#stage").innerHTML=`<h1>👤 ${t("gateYes").replace(/^✅\s*/,"")}</h1>
+    <p class="sub">${t("recogScan")}</p>
+    <div style="position:relative;width:min(340px,80vw,46vh);margin:0 auto;border-radius:18px;overflow:hidden;background:#000;border:1.5px solid var(--line)">
+      <video id="fv" playsinline muted style="width:100%;display:block;aspect-ratio:3/4;object-fit:cover;transform:scaleX(-1)"></video>
+      <canvas id="fc" style="display:none"></canvas>
+      <div id="oval" style="position:absolute;left:50%;top:46%;width:62%;aspect-ratio:3/4;transform:translate(-50%,-50%);
+           border:3px solid rgba(59,130,246,.9);border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none;transition:border-color .2s"></div>
+      <div id="fstatus" style="position:absolute;left:0;right:0;bottom:0;padding:8px;font-size:11.5px;letter-spacing:.08em;text-align:center;background:rgba(6,10,22,.78)">⏳ LOADING FACE MODEL…</div>
+    </div>
+    <button id="f-manual" style="margin-top:14px;display:none">📸 ${LANG==="zh"?"手動拍照辨識":LANG==="es"?"CAPTURAR AHORA":"CAPTURE NOW"}</button>
+    <button class="ghost" id="g-back" style="margin-top:10px">← ${t("recogNotMe").replace(/^✕\s*/,"")}</button>
+    <p class="err" id="e" style="display:none"></p>`;
+  $("#g-back").onclick=()=>{stopFaceCam();formView();};
+  const video=$("#fv"),status=$("#fstatus"),oval=$("#oval");
+  try{
+    faceStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"user",width:{ideal:960},height:{ideal:1280}},audio:false});
+  }catch(e){status.textContent="📷 "+t("photoCam");return;}
+  video.srcObject=faceStream;
+  try{await video.play();}catch{}
+  const snap=()=>{
+    const c=$("#fc");c.width=480;c.height=640;
+    const ctx=c.getContext("2d");
+    const sw=video.videoHeight*0.75,sx=(video.videoWidth-sw)/2;
+    ctx.translate(c.width,0);ctx.scale(-1,1);
+    ctx.drawImage(video,sx,0,sw,video.videoHeight,0,0,c.width,c.height);
+    return c.toDataURL("image/jpeg",0.82);
+  };
+
+  // SERVER-AUTHORITATIVE face recognition:
+  //  - client (face-api.js) only DETECTS a live face and captures the frame
+  //  - server (face_recognition/dlib + DeepFace + OpenCV) makes ALL identity
+  //    decisions via /api/visitor/recognize
+  const captured=async(dataUri)=>{
+    stopFaceCam();
+    const msgFace=LANG==="zh"?"請保持面向鏡頭，不要移動":LANG==="es"?"Siga mirando a la cámara — no se mueva":"Keep facing the camera — do not move";
+    const msgSrv=LANG==="zh"?"伺服器 AI 辨識中…":LANG==="es"?"Reconocimiento en el servidor…":"Server-side recognition…";
+    $("#stage").innerHTML=`<div class="big-status"><div class="icon">🧠</div>
+      <h2>${t("recogScan")}</h2>
+      <p class="sub" style="font-size:15px;font-weight:700;color:var(--acc)">📷 ${msgFace}</p>
+      <p class="sub">${msgSrv}</p></div>
+      <div style="max-width:min(340px,80vw);margin:18px auto 0">
+        <div style="height:10px;background:#0b1220;border:1.5px solid var(--line);border-radius:99px;overflow:hidden">
+          <div id="rbar" style="height:100%;width:2%;background:linear-gradient(90deg,#3b82f6,#22c55e);border-radius:99px;transition:width .35s linear"></div>
+        </div>
+        <div id="rpct" style="text-align:center;font-size:12px;color:var(--mut);margin-top:8px;letter-spacing:.08em">0%</div>
+      </div>`;
+    // progress: eases toward 90% while the server works (typ. 3–10 s with
+    // DeepFace), jumps to 100% the moment the verdict arrives
+    let pct=2;
+    const tick=setInterval(()=>{
+      const bar=$("#rbar"),lbl=$("#rpct");
+      if(!bar){clearInterval(tick);return;}
+      pct=Math.min(90,pct+(90-pct)*0.055+0.4);
+      bar.style.width=pct.toFixed(1)+"%";
+      lbl.textContent=Math.round(pct)+"%";
+    },350);
+    const finishBar=async()=>{
+      clearInterval(tick);
+      const bar=$("#rbar"),lbl=$("#rpct");
+      if(bar){bar.style.width="100%";lbl.textContent="100%";
+        await new Promise(res=>setTimeout(res,450));}
+    };
+    let sm=null;
+    try{
+      const ctl=new AbortController();
+      const kill=setTimeout(()=>ctl.abort(),45000);   // hard server timeout
+      const r=await fetch("/api/visitor/recognize",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({device:CRED,face_photo:dataUri}),signal:ctl.signal});
+      clearTimeout(kill);
+      const d=await r.json().catch(()=>({}));
+      if(r.ok)sm=d;
+    }catch{}
+    await finishBar();
+    if(sm&&sm.match){
+      sm.engines=LANG==="zh"?"伺服器引擎":"server engine";
+      recogConfirmView(sm,dataUri);
+    }else{
+      const diag=[];
+      if(sm&&sm.distance!=null)diag.push(`d=${Number(sm.distance).toFixed(2)}`);
+      if(sm&&sm.reason)diag.push(sm.reason.replace(/_/g," "));
+      $("#stage").innerHTML=`<div class="big-status"><div class="icon">🤷</div>
+        <h2>${t("recogMiss")}</h2>
+        <p class="sub">${diag.join(" · ")}</p></div>`;
+      setTimeout(formView,3000);
+    }
+  };
+
+  // ---------- capture gating: on-device neural face detector ----------
+  let api=null;
+  try{api=await loadFaceApi();}catch{}
+  if(api){
+    status.textContent="👤 "+t("photoLook");
+    // manual capture appears after 6 s in case the live loop struggles
+    const manualBtn=$("#f-manual");
+    setTimeout(()=>{if(faceTimer)manualBtn.style.display="";},6000);
+    manualBtn.onclick=async()=>{
+      manualBtn.disabled=true;
+      if(faceTimer){clearInterval(faceTimer);faceTimer=null;}
+      captured(snap());
+    };
+    // live loop: face must be present on TWO consecutive frames
+    let streak=0,busy=false;
+    faceTimer=setInterval(async()=>{
+      if(busy||!video.videoWidth)return;
+      busy=true;
+      try{
+        const desc=await descriptorFromVideo(video);
+        if(!desc){streak=0;oval.style.borderColor="rgba(59,130,246,.9)";
+          status.textContent="👤 "+t("photoLook");busy=false;return;}
+        streak++;
+        oval.style.borderColor="var(--ok)";
+        status.textContent="🟢 "+t("photoHold")+" "+"●".repeat(Math.min(streak,2))+"○".repeat(Math.max(0,2-streak));
+        if(streak<2){busy=false;return;}
+        clearInterval(faceTimer);faceTimer=null;
+        captured(snap());
+      }catch{busy=false;return;}
+      busy=false;
+    },420);
+    return;
+  }
+  let detector=null;
+  if("FaceDetector"in window){try{detector=new window.FaceDetector({fastMode:true,maxDetectedFaces:1});}catch{}}
+  if(detector){
+    let streak=0;
+    status.textContent="👤 "+t("photoLook");
+    faceTimer=setInterval(async()=>{
+      if(!video.videoWidth)return;
+      let faces=[];
+      try{faces=await detector.detect(video);}catch{return;}
+      const vw=video.videoWidth,vh=video.videoHeight,f=faces[0];
+      const good=f&&f.boundingBox.width>vw*0.28&&
+        Math.abs((f.boundingBox.x+f.boundingBox.width/2)-vw/2)<vw*0.16&&
+        Math.abs((f.boundingBox.y+f.boundingBox.height/2)-vh*0.46)<vh*0.16;
+      if(good){streak++;oval.style.borderColor="var(--ok)";
+        status.textContent="🟢 "+t("photoHold")+" "+"●".repeat(streak)+"○".repeat(Math.max(0,3-streak));
+        if(streak>=3)captured(snap());
+      }else{streak=0;oval.style.borderColor="rgba(59,130,246,.9)";
+        status.textContent="👤 "+t("photoLook");}
+    },350);
+  }else{
+    // no face detector at all → MANUAL capture only (never a blind countdown)
+    status.textContent="👤 "+t("photoLook");
+    const btn=document.createElement("button");
+    btn.textContent="📸 "+(LANG==="zh"?"拍照辨識":LANG==="es"?"CAPTURAR":"CAPTURE");
+    btn.style.marginTop="14px";
+    $("#g-back").before(btn);
+    btn.onclick=()=>captured(snap());
+  }
+}
+
+function recogConfirmView(d,freshFace){
+  const last=d.last_visit?new Date(d.last_visit).toLocaleDateString():"—";
+  $("#stage").innerHTML=`
+    <div class="big-status" style="margin-bottom:6px"><div class="icon">🤝</div>
+      <h2 style="color:var(--ok)">${t("recogHit")}, ${d.visitor_name}!</h2>
+      <p class="sub">${Math.round(d.similarity*100)}% match${d.engines?` · ${d.engines}`:""} · ${t("recogLast")}: ${last}</p></div>
+    <div style="display:flex;gap:14px;align-items:center;background:#0b1220;border:1.5px solid var(--line);border-radius:14px;padding:14px;margin:10px 0">
+      ${d.face_photo?`<img src="${d.face_photo}" style="width:72px;height:96px;object-fit:cover;border-radius:10px;border:2px solid var(--ok);flex:none">`:""}
+      <div style="font-size:13px;line-height:2;min-width:0">
+        <b>${d.visitor_name}</b>${d.company?` — ${d.company}`:""}<br>
+        ${d.host?`👥 ${t("host")}: <b>${d.host}</b><br>`:""}
+        ${d.purpose?`📋 ${t("purpose")}: ${d.purpose}<br>`:""}
+        ${d.destination?`📍 ${t("dest")}: ${d.destination}`:""}
+      </div></div>
+    <div class="privacy" style="margin:8px 0">${t("privacy")}</div>
+    <button id="r-ok" class="cta">${t("recogConfirm")}</button>
+    <button id="r-no" class="ghost" style="margin-top:10px">${t("recogNotMe")}</button>
+    <p class="err" id="e" style="display:none"></p>`;
+  $("#r-no").onclick=formView;
+  $("#r-ok").onclick=async()=>{
+    try{
+      FORM={device:CRED,visitor_name:d.visitor_name,company:d.company||"",
+        category:d.category||"walk-in",host:d.host||"",purpose:d.purpose||"",
+        destination:d.destination||"",language:LANG,
+        id_doc_type:d.id_doc_type||"none",id_number:"",consent:true};
+      await registerVisit(freshFace,[]);   // fresh portrait, no re-scan of documents
+    }catch(err){$("#e").textContent="❌ "+err.message;$("#e").style.display="block";}
+  };
+}
+
+function formView(){
+  VISIT=null;clearInterval(POLL);stopFaceCam&&stopFaceCam();
+  $("#stage").innerHTML=`
+    <div class="brandbar"><div class="mark">🛂</div>
+      <div><div class="kicker">Secure Visitor Management</div>
+      <h1 style="margin:0">${t("welcome")}</h1></div></div>
+    <p class="sub" style="margin-bottom:16px">${LANG==="zh"?"請填寫以下資料，接待人將收到即時通知。":LANG==="es"?"Complete los datos — su anfitrión será notificado al instante.":"Complete the details below — your host is notified instantly."}</p>
+    ${stepper(1)}
+    <label>${t("lang")}</label>
+    <div class="langs">
+      <button class="ghost ${LANG==="en"?"sel":""}" data-l="en">🇺🇸 English</button>
+      <button class="ghost ${LANG==="es"?"sel":""}" data-l="es">🇪🇸 Español</button>
+      <button class="ghost ${LANG==="zh"?"sel":""}" data-l="zh">🇹🇼 中文</button></div>
+    <div class="sect">👤 ${LANG==="zh"?"訪客資料":LANG==="es"?"Datos del visitante":"Visitor details"}</div>
+    <div class="grid2">
+      <div><label>${t("name")} *</label><input id="vname" autocomplete="off" placeholder="${LANG==="zh"?"例：陳大文":"e.g. Jane Smith"}"></div>
+      <div><label>${t("cat")}</label>
+      <select id="cat"><option value="walk-in">🚶 Walk-in</option><option value="preregistered">📅 Preregistered</option>
+        <option value="contractor">🔧 Contractor</option><option value="vendor">📦 Vendor</option>
+        <option value="delivery">🚚 Delivery</option><option value="official">🏛 Government / official</option></select></div>
+    </div>
+    <div class="sect">🏢 ${LANG==="zh"?"到訪資訊":LANG==="es"?"Detalles de la visita":"Visit information"}</div>
+    <div class="grid2">
+      <div><label>${LANG==="zh"?"訪客公司（來自）":LANG==="es"?"Empresa del visitante (de)":"Visitor company (from)"}</label>
+        <input id="vcompany" autocomplete="off" placeholder="${LANG==="zh"?"例：ABC 科技":"e.g. ABC Technologies"}"></div>
+      <div><label>${t("host")} *</label><input id="host" autocomplete="off" placeholder="${LANG==="zh"?"接待人姓名":"Host name"}"></div>
+    </div>
+    <div class="grid2">
+      <div><label>${t("dest")}</label><input id="dest" autocomplete="off" placeholder="${LANG==="zh"?"例：3 樓會議室":"e.g. 3F Conference Room"}"></div>
+      <div><label>${t("purpose")}</label><input id="purpose" autocomplete="off" placeholder="${LANG==="zh"?"例：商務會議":"e.g. Business meeting"}"></div>
+    </div>
+    <div class="sect">🪪 ${LANG==="zh"?"身份證件":LANG==="es"?"Identificación":"Identification"}</div>
+    <div class="grid2">
+      <div><label>${t("doc")}</label>
+      <select id="doct"><option value="none">None required</option>
+        <option value="drivers_license">🚗 Driver's license</option><option value="passport">🛩 Passport</option>
+        <option value="gov_id">🪪 State ID card</option><option value="org_badge">🏷 Organization badge</option></select></div>
+      <div id="docnumwrap" style="display:none"><label>${t("docnum")}</label>
+        <input id="docnum" autocomplete="off"></div>
+    </div>
+    <div class="sect">🔒 ${LANG==="zh"?"隱私與同意":LANG==="es"?"Privacidad y consentimiento":"Privacy & consent"}</div>
+    <div class="privacy">${t("privacy")}</div>
+    <label class="consent-card" id="consentcard"><input type="checkbox" id="consent"><span>${t("consent")}</span></label>
+    <button id="reg" class="cta">${t("register")}</button>
+    <p class="assist">${LANG==="zh"?"需要協助？請洽接待處人員。":LANG==="es"?"¿Necesita ayuda? Consulte a recepción.":"Need assistance? Please see the reception desk."}</p>
+    <p class="err" id="e" style="display:none"></p>`;
+  document.querySelectorAll(".langs button").forEach(b=>b.onclick=()=>{LANG=b.dataset.l;formView();});
+  $("#consent").onchange=()=>$("#consentcard").classList.toggle("ok",$("#consent").checked);
+  $("#doct").onchange=()=>$("#docnumwrap").style.display=$("#doct").value==="none"?"none":"block";
+  $("#reg").onclick=async()=>{
+    $("#e").style.display="none";
+    try{
+      if(!$("#consent").checked)throw new Error(LANG==="zh"?"請先勾選同意隱私聲明":LANG==="es"?"Debe aceptar el aviso de privacidad":"Please tick the privacy consent first");
+      if(!$("#vname").value.trim())throw new Error(LANG==="zh"?"請輸入姓名":LANG==="es"?"El nombre es obligatorio":"Name is required");
+      if(!$("#host").value.trim())throw new Error(LANG==="zh"?"請輸入接待人":LANG==="es"?"El anfitrión es obligatorio":"Host is required");
+      const company=$("#vcompany").value.trim();
+      const PID=["drivers_license","gov_id","passport"];
+      // company visitors must present a certified personal ID (DL / State ID / Passport)
+      if(company&&!PID.includes($("#doct").value))
+        throw new Error(LANG==="zh"?"公司訪客須選擇證件：駕照、州 ID 或護照":LANG==="es"?"Visitantes de empresa: elija Licencia, ID estatal o Pasaporte":"Company visitors must choose a personal ID: Driver's License, State ID card or Passport");
+      FORM={device:CRED,visitor_name:$("#vname").value,company,
+        category:$("#cat").value,host:$("#host").value,purpose:$("#purpose").value,
+        destination:$("#dest").value,language:LANG,id_doc_type:$("#doct").value,
+        id_number:$("#docnum")?($("#docnum").value||""):"",consent:true};
+      PHOTOS=[];
+      startDocs();          // enterprise flow: ID documents → org badge → face
+    }catch(e){$("#e").textContent="❌ "+e.message;$("#e").style.display="block";}
+  };
+}
+
+async function registerVisit(facePhoto,docPhotos){
+  stopFaceCam();
+  const r=await fetch("/api/visitor/register",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({...FORM,face_photo:facePhoto||"",doc_photos:docPhotos||[]})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.detail||"Registration failed");
+  VISIT=d.visit_id;
+  // self-service kiosk — auto-approved on registration, badge issued at once
+  badgeView(d);
+}
+
+/* ============ identity document capture — AUTO ============
+   The camera watches the frame; a certified ID (Driver's License / State ID /
+   Passport) is recognised by its machine features — the PDF417 barcode on
+   license backs, or the printed portrait photo on the front / photo page.
+   When recognised and steady the shot is taken automatically; a frame
+   without those features triggers a NOT-CERTIFIED alert. */
+const DOC_SHOTS={
+  drivers_license:[["Driver's License — FRONT","駕駛執照 — 正面","Licencia — FRENTE"],
+                   ["Driver's License — BACK","駕駛執照 — 背面","Licencia — REVERSO"]],
+  gov_id:[["State ID Card — FRONT","州 ID 卡 — 正面","ID estatal — FRENTE"],
+          ["State ID Card — BACK","州 ID 卡 — 背面","ID estatal — REVERSO"]],
+  passport:[["Passport — PHOTO PAGE","護照 — 資料頁","Pasaporte — PÁGINA DE FOTO"]],
+  org_badge:[["Organization / Government Badge","機構 / 政府識別證","Credencial de organización / gobierno"]]};
+const dl=(s)=>LANG==="zh"?s[1]:LANG==="es"?s[2]:s[0];
+const NOT_CERT=()=>LANG==="zh"?"⚠ 這不是經認證的駕照、州 ID 卡或護照 — 請使用真實證件重試":
+  LANG==="es"?"⚠ No es una licencia, ID estatal o pasaporte certificado — inténtelo con el documento real":
+  "⚠ This is not a certified Driver's License, State ID card or Passport — please retry with the real document";
+
+function startDocs(){
+  if(FORM.id_doc_type==="org_badge"||FORM.id_doc_type==="none")return badgeCapture();
+  const queue=(DOC_SHOTS[FORM.id_doc_type]||[]).map((s,i)=>({label:DOC_SHOTS[FORM.id_doc_type][i][0],title:dl(s),back:/BACK/.test(s[0])}));
+  const next=()=>{
+    if(!queue.length)return badgeCapture();
+    const shot=queue.shift();
+    docView(shot,(img)=>{if(img)PHOTOS.push({label:shot.label,image:img});next();});
+  };
+  next();
+}
+
+async function docView(shot,done){
+  stopFaceCam();
+  $("#stage").innerHTML=`${stepper(2)}<h1>🪪 ${shot.title}</h1>
+    <p class="sub">${LANG==="zh"?"請將證件平放於框內 — 確認為真實證件後將自動拍攝。":LANG==="es"?"Coloque el documento dentro del marco — se captura automáticamente al verificarlo.":"Place the document flat inside the frame — it is verified and captured automatically."}</p>
+    <div style="position:relative;width:min(420px,86vw);margin:0 auto;border-radius:16px;overflow:hidden;background:#000;border:1.5px solid var(--line)">
+      <video id="dv" playsinline muted style="width:100%;display:block;aspect-ratio:16/10;object-fit:cover"></video>
+      <canvas id="dc" style="display:none"></canvas>
+      <div id="dframe" style="position:absolute;inset:9% 7%;border:6px dashed rgba(96,165,250,.95);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 14px rgba(59,130,246,.55) inset;pointer-events:none;transition:border-color .2s"></div>
+      <div id="dstatus" style="position:absolute;left:0;right:0;bottom:0;padding:7px;font-size:11px;letter-spacing:.08em;text-align:center;background:rgba(6,10,22,.78)">⏳</div>
+    </div>
+    <div id="dalert" style="display:none;margin-top:12px;padding:12px 14px;border:1.5px solid var(--err);border-radius:12px;color:var(--err);font-weight:700;font-size:13px;text-align:center"></div>
+    <div id="dlive"><button id="dsnap" class="ghost" style="margin-top:14px">📸 ${LANG==="zh"?"手動拍攝":LANG==="es"?"CAPTURA MANUAL":"MANUAL CAPTURE"}</button></div>
+    <div id="dpreview" style="display:none;text-align:center">
+      <img id="dimg" style="width:min(340px,80vw);border-radius:12px;border:2px solid var(--ok);margin:14px auto 0;display:block">
+      <div style="display:flex;gap:10px">
+        <button class="ghost" id="dretake" style="margin-top:14px">${t("photoRetake")}</button>
+        <button id="duse" style="margin-top:14px">${LANG==="zh"?"使用此相片 ▶":LANG==="es"?"USAR ESTA FOTO ▶":"USE THIS PHOTO ▶"}</button></div>
+    </div>
+    <p class="err" id="e" style="display:none"></p>`;
+  const video=$("#dv"),status=$("#dstatus"),frame=$("#dframe"),alertBox=$("#dalert");
+  try{
+    faceStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment",width:{ideal:2560},height:{ideal:1600},
+        advanced:[{focusMode:"continuous"}]},audio:false});
+  }catch(e){
+    status.textContent="📷 "+t("photoCam");
+    $("#dsnap").textContent=LANG==="zh"?"繼續（無相機）":LANG==="es"?"CONTINUAR (SIN CÁMARA)":"CONTINUE (NO CAMERA)";
+    $("#dsnap").onclick=()=>done("");
+    return;
+  }
+  video.srcObject=faceStream;
+  try{await video.play();}catch{}
+  status.textContent="📄 "+(LANG==="zh"?"正在驗證證件…":LANG==="es"?"VERIFICANDO DOCUMENTO…":"VERIFYING DOCUMENT…");
+  // verification engines: PDF417/QR (license backs) + portrait photo detection
+  let bd=null,fd=null;
+  if("BarcodeDetector"in window){try{
+    const fmts=await window.BarcodeDetector.getSupportedFormats();
+    bd=new window.BarcodeDetector({formats:fmts.filter(f=>["pdf417","qr_code","aztec","data_matrix"].includes(f))});
+  }catch{}}
+  if("FaceDetector"in window){try{fd=new window.FaceDetector({fastMode:true,maxDetectedFaces:2});}catch{}}
+  const zoom=document.createElement("canvas");            // upscaled frame-area crop
+  const cropZoom=()=>{                                    // 2x zoom so printed faces/barcodes are detectable
+    const vw=video.videoWidth,vh=video.videoHeight;
+    const sx=vw*0.07,sy=vh*0.09,sw=vw*0.86,sh=vh*0.82;    // matches the dashed frame inset
+    zoom.width=Math.min(1600,sw*2);zoom.height=Math.round(zoom.width*sh/sw);
+    zoom.getContext("2d").drawImage(video,sx,sy,sw,sh,0,0,zoom.width,zoom.height);
+    return zoom;
+  };
+  // heuristic fallback: a document filling the frame has dense fine texture
+  // (printed text), a LIGHT uniform card background, and even illumination —
+  // an office scene / person does not.
+  const texture=(c)=>{
+    const w=160,h=100;
+    const t=document.createElement("canvas");t.width=w;t.height=h;
+    t.getContext("2d").drawImage(c,0,0,w,h);
+    const d=t.getContext("2d").getImageData(0,0,w,h).data;
+    let edges=0,sum=0,light=0,sat=0;
+    const lum=(i)=>d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114;
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      const i=(y*w+x)*4,l=lum(i);
+      const dx=Math.abs(l-lum(i+4)),dy=Math.abs(l-lum(i+w*4));
+      if(dx+dy>42)edges++;sum+=l;
+      if(l>150)light++;                                   // card background pixels
+      sat+=Math.max(d[i],d[i+1],d[i+2])-Math.min(d[i],d[i+1],d[i+2]);
+    }
+    const n=(w-2)*(h-2);
+    const density=edges/n,bright=sum/n,lightFrac=light/n,avgSat=sat/n;
+    // real cards: text-dense, bright, MOSTLY light background, low colour saturation
+    return density>0.075&&bright>110&&bright<235&&lightFrac>0.45&&avgSat<60;
+  };
+  const verify=async(src,canvas)=>{ // certified = barcode (back) / card-sized printed portrait (front)
+    // 1) machine-readable barcode (PDF417 on license/ID backs) — strongest proof
+    try{if(bd&&(await bd.detect(src)).length)return true;}catch{}
+    // 2) faces: only a SMALL printed portrait counts — a large face means a
+    //    real person is in front of the camera, NOT a document → reject
+    try{
+      if(fd){
+        const faces=await fd.detect(src);
+        const cw=(canvas||src).width||video.videoWidth;
+        if(faces.some(f=>f.boundingBox.width>cw*0.30))return false;  // live person → never a card
+        if(!shot.back&&faces.some(f=>f.boundingBox.width>cw*0.06&&f.boundingBox.width<cw*0.30)
+           &&texture(canvas||src))return true;            // card-sized portrait + card texture
+      }
+    }catch{}
+    // 3) BACK side must show its barcode when the detector exists; texture
+    //    heuristic alone is accepted only when no barcode engine is available
+    if(shot.back&&bd)return false;
+    try{return texture(canvas||src);}catch{}
+    return false;
+  };
+  // CLARITY ANALYSIS — Laplacian-variance focus measure on the frame area.
+  // A blurred / moving / badly-lit shot scores low and is refused.
+  const sharpness=(c)=>{
+    const w=220,h=140,t=document.createElement("canvas");t.width=w;t.height=h;
+    t.getContext("2d").drawImage(c,0,0,w,h);
+    const d=t.getContext("2d").getImageData(0,0,w,h).data;
+    const L=new Float32Array(w*h);
+    for(let i=0;i<w*h;i++)L[i]=d[i*4]*0.299+d[i*4+1]*0.587+d[i*4+2]*0.114;
+    let sum=0,sum2=0,n=0;
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      const i=y*w+x;
+      const lap=L[i-1]+L[i+1]+L[i-w]+L[i+w]-4*L[i];   // Laplacian response
+      sum+=lap;sum2+=lap*lap;n++;
+    }
+    return sum2/n-(sum/n)**2;                          // variance = focus score
+  };
+  const SHARP_MIN=110;                                 // below this = too blurry
+  const snap=()=>{                                     // HIGH-RES capture: crop of frame area
+    const vw=video.videoWidth,vh=video.videoHeight;
+    const sx=vw*0.07,sy=vh*0.09,sw=vw*0.86,sh=vh*0.82;
+    const c=$("#dc");c.width=Math.min(1400,sw);c.height=Math.round(c.width*sh/sw);
+    c.getContext("2d").drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+    return c;
+  };
+  const accept=(canvas)=>{
+    stopFaceCam();
+    const img=canvas.toDataURL("image/jpeg",0.92);
+    if(navigator.vibrate)navigator.vibrate(80);
+    frame.style.borderColor="var(--ok)";
+    status.textContent="✅ "+t("photoGot");
+    $("#dimg").src=img;$("#dlive").style.display="none";$("#dpreview").style.display="block";
+    $("#dretake").onclick=()=>docView(shot,done);
+    $("#duse").onclick=()=>done(img);
+  };
+  let streak=0;
+  faceTimer=setInterval(async()=>{
+    if(!video.videoWidth)return;
+    const z=cropZoom();                 // detect on the upscaled frame area
+    const ok=await verify(z,z);
+    if(ok){
+      const focus=sharpness(z);
+      if(focus<SHARP_MIN){              // recognised but NOT clear — refuse to capture
+        streak=0;frame.style.borderColor="#eab308";
+        status.textContent="🔍 "+(LANG==="zh"?"影像不夠清晰 — 請拿穩並對焦":LANG==="es"?"IMAGEN BORROSA — SOSTENGA FIRME Y ENFOQUE":"IMAGE NOT SHARP — HOLD STEADY, LET THE CAMERA FOCUS");
+        return;
+      }
+      streak++;alertBox.style.display="none";frame.style.borderColor="var(--ok)";
+      status.textContent="🟢 "+(LANG==="zh"?"清晰度良好 — 請保持不動":LANG==="es"?"NÍTIDO — NO SE MUEVA":"SHARP & RECOGNISED — HOLD STILL")+" "+"●".repeat(Math.min(streak,3))+"○".repeat(Math.max(0,3-streak));
+      if(streak>=3){
+        const c=snap();
+        if(sharpness(c)<SHARP_MIN){streak=0;return;}   // final full-res clarity check
+        accept(c);
+      }
+    }else{
+      streak=0;frame.style.borderColor="rgba(96,165,250,.95)";
+      status.textContent="📄 "+(LANG==="zh"?"正在驗證… 請將證件填滿框格":LANG==="es"?"VERIFICANDO… LLENE EL MARCO":"VERIFYING… FILL THE FRAME WITH THE DOCUMENT");
+    }
+  },450);
+  $("#dsnap").onclick=async()=>{
+    const z=cropZoom();
+    if(await verify(z,z)){
+      const c=snap();
+      if(sharpness(c)>=SHARP_MIN)return accept(c);
+      alertBox.textContent=LANG==="zh"?"⚠ 影像太模糊 — 請拿穩證件，等待對焦後再拍":LANG==="es"?"⚠ Demasiado borroso — sostenga firme y espere el enfoque":"⚠ Too blurry — hold the document steady and wait for the camera to focus";
+      alertBox.style.display="block";frame.style.borderColor="#eab308";
+      if(navigator.vibrate)navigator.vibrate([60,40,60]);
+      return;
+    }
+    // manual shot failed certification — show the alert
+    alertBox.textContent=NOT_CERT();alertBox.style.display="block";
+    frame.style.borderColor="var(--err)";
+    if(navigator.vibrate)navigator.vibrate([80,60,80]);
+  };
+}
+
+/* ============ organization / government badge capture ============ */
+async function badgeCapture(){
+  stopFaceCam();
+  const shot={label:"Organization Badge",title:dl(DOC_SHOTS.org_badge[0])};
+  $("#stage").innerHTML=`${stepper(2)}<h1>🏷 ${shot.title}</h1>
+    <p class="sub">${LANG==="zh"?"請拍攝您的公司或政府識別證。若沒有識別證，請勾選下方選項。":LANG==="es"?"Capture su credencial de empresa o gobierno. Si no dispone de una, marque la casilla.":"Capture your company or government badge. If your organization does not issue badges, tick the box below."}</p>
+    <div style="position:relative;width:min(420px,86vw);margin:0 auto;border-radius:16px;overflow:hidden;background:#000;border:1.5px solid var(--line)">
+      <video id="dv" playsinline muted style="width:100%;display:block;aspect-ratio:16/10;object-fit:cover"></video>
+      <canvas id="dc" style="display:none"></canvas>
+      <div style="position:absolute;inset:9% 7%;border:6px dashed rgba(96,165,250,.95);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 14px rgba(59,130,246,.55) inset;pointer-events:none"></div>
+      <div id="dstatus" style="position:absolute;left:0;right:0;bottom:0;padding:7px;font-size:11px;letter-spacing:.08em;text-align:center;background:rgba(6,10,22,.78)">⏳</div>
+    </div>
+    <div id="dlive"><button id="dsnap" style="margin-top:14px">📸 ${LANG==="zh"?"拍攝識別證":LANG==="es"?"CAPTURAR CREDENCIAL":"CAPTURE BADGE"}</button></div>
+    <label class="consent-card" id="nobadge-card" style="margin-top:12px"><input type="checkbox" id="nobadge">
+      <span>${LANG==="zh"?"我們公司沒有識別證":LANG==="es"?"Nuestra empresa no tiene credencial":"We don't have the badge"}</span></label>
+    <button class="ghost" id="dcontinue" style="margin-top:10px;display:none">${LANG==="zh"?"繼續 ▶":LANG==="es"?"CONTINUAR ▶":"CONTINUE ▶"}</button>
+    <div id="dpreview" style="display:none;text-align:center">
+      <img id="dimg" style="width:min(340px,80vw);border-radius:12px;border:2px solid var(--ok);margin:14px auto 0;display:block">
+      <div style="display:flex;gap:10px">
+        <button class="ghost" id="dretake" style="margin-top:14px">${t("photoRetake")}</button>
+        <button id="duse" style="margin-top:14px">${LANG==="zh"?"使用此相片 ▶":LANG==="es"?"USAR ESTA FOTO ▶":"USE THIS PHOTO ▶"}</button></div>
+    </div>`;
+  const video=$("#dv"),status=$("#dstatus");
+  $("#nobadge").onchange=()=>{
+    const no=$("#nobadge").checked;
+    $("#nobadge-card").classList.toggle("ok",no);
+    $("#dcontinue").style.display=no?"block":"none";
+    $("#dlive").style.display=no?"none":"block";
+  };
+  $("#dcontinue").onclick=()=>{stopFaceCam();photoView();};
+  try{
+    faceStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment",width:{ideal:2560},height:{ideal:1600},
+        advanced:[{focusMode:"continuous"}]},audio:false});
+    video.srcObject=faceStream;
+    try{await video.play();}catch{}
+    status.textContent="🏷 "+(LANG==="zh"?"對準識別證後按拍攝":LANG==="es"?"ENCUADRE Y CAPTURE":"ALIGN THE BADGE, THEN CAPTURE");
+  }catch(e){status.textContent="📷 "+t("photoCam");}
+  $("#dsnap").onclick=()=>{
+    if(!video.videoWidth){photoView();return;}
+    const vw=video.videoWidth,vh=video.videoHeight;
+    const sx=vw*0.07,sy=vh*0.09,sw=vw*0.86,sh=vh*0.82;
+    const c=$("#dc");c.width=Math.min(1400,sw);c.height=Math.round(c.width*sh/sw);
+    c.getContext("2d").drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+    const img=c.toDataURL("image/jpeg",0.92);
+    if(navigator.vibrate)navigator.vibrate(80);
+    $("#dimg").src=img;$("#dlive").style.display="none";$("#dpreview").style.display="block";
+    $("#nobadge-card").style.display="none";
+    status.textContent="✅ "+t("photoGot");
+    $("#dretake").onclick=()=>badgeCapture();
+    $("#duse").onclick=()=>{stopFaceCam();PHOTOS.push({label:"Organization Badge",image:img});photoView();};
+  };
+}
+
+/* ============ face photo: hands-free auto capture ============
+   The visitor positions their face in the oval; when a face is detected,
+   centred and large enough for 3 consecutive frames (~1s), the photo is
+   captured automatically — no button press. Uses the native FaceDetector
+   where available; otherwise falls back to a hold-still countdown. */
+let faceStream=null,faceTimer=null;
+function stopFaceCam(){
+  if(faceTimer){clearInterval(faceTimer);faceTimer=null;}
+  if(faceStream){faceStream.getTracks().forEach(t=>t.stop());faceStream=null;}
+}
+async function photoView(){
+  stopFaceCam();
+  $("#stage").innerHTML=`${stepper(2)}<h1>📸 ${t("photoTitle")}</h1>
+    <p class="sub">${t("photoSub")}</p>
+    <div id="fcam" style="position:relative;width:min(340px,80vw,42vh);margin:0 auto;border-radius:18px;overflow:hidden;background:#000;border:1.5px solid var(--line)">
+      <video id="fv" playsinline muted style="width:100%;display:block;aspect-ratio:3/4;object-fit:cover;transform:scaleX(-1)"></video>
+      <canvas id="fc" style="display:none"></canvas>
+      <div id="oval" style="position:absolute;left:50%;top:46%;width:62%;aspect-ratio:3/4;transform:translate(-50%,-50%);
+           border:3px solid rgba(59,130,246,.9);border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none;transition:border-color .2s"></div>
+      <div id="fstatus" style="position:absolute;left:0;right:0;bottom:0;padding:8px;font-size:11.5px;letter-spacing:.08em;text-align:center;background:rgba(6,10,22,.78)">⏳</div>
+    </div>
+    <div id="fpreview" style="display:none;text-align:center">
+      <img id="fimg" style="width:min(240px,60vw,34vh);border-radius:16px;border:2px solid var(--ok);margin:10px auto 0;display:block">
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="ghost" id="fretake" style="margin-top:12px;width:auto;padding:14px 22px">${t("photoRetake")}</button>
+        <button id="fuse" style="margin-top:12px;width:auto;padding:14px 26px">${t("photoUse")}</button></div>
+    </div>
+    <button class="ghost" id="fskip" style="margin-top:14px">${t("photoSkip")}</button>
+    <p class="err" id="e" style="display:none"></p>`;
+  $("#fskip").onclick=()=>registerVisit("",PHOTOS).catch(err=>{$("#e").textContent="❌ "+err.message;$("#e").style.display="block";});
+  const video=$("#fv"),status=$("#fstatus"),oval=$("#oval");
+  try{
+    faceStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"user",width:{ideal:960},height:{ideal:1280}},audio:false});
+  }catch(e){
+    status.textContent="📷 "+t("photoCam");return;
+  }
+  video.srcObject=faceStream;
+  try{await video.play();}catch{}
+  const snap=()=>{
+    const c=$("#fc"),s=Math.min(video.videoWidth,video.videoHeight);
+    c.width=480;c.height=640;
+    const ctx=c.getContext("2d");
+    // mirror-corrected, centre-cropped 3:4 portrait
+    const sw=video.videoHeight*0.75,sx=(video.videoWidth-sw)/2;
+    ctx.translate(c.width,0);ctx.scale(-1,1);
+    ctx.drawImage(video,sx,0,sw,video.videoHeight,0,0,c.width,c.height);
+    return c.toDataURL("image/jpeg",0.82);
+  };
+  const captured=(dataUri)=>{
+    stopFaceCam();
+    if(navigator.vibrate)navigator.vibrate(120);
+    // hide the live camera so the preview + buttons fit small kiosk screens
+    $("#fcam").style.display="none";
+    $("#fimg").src=dataUri;
+    $("#fpreview").style.display="block";
+    $("#fskip").style.display="none";
+    $("#fretake").onclick=()=>photoView();
+    $("#fuse").onclick=()=>registerVisit(dataUri,PHOTOS).catch(err=>{$("#e").textContent="❌ "+err.message;$("#e").style.display="block";});
+  };
+  let detector=null;
+  if("FaceDetector"in window){try{detector=new window.FaceDetector({fastMode:true,maxDetectedFaces:1});}catch{}}
+  if(detector){
+    let streak=0;
+    status.textContent="👤 "+t("photoLook");
+    faceTimer=setInterval(async()=>{
+      if(!video.videoWidth)return;
+      let faces=[];
+      try{faces=await detector.detect(video);}catch{return;}
+      const vw=video.videoWidth,vh=video.videoHeight;
+      const f=faces[0];
+      // face must be large enough and centred in the oval
+      let good=f&&f.boundingBox.width>vw*0.28&&
+        Math.abs((f.boundingBox.x+f.boundingBox.width/2)-vw/2)<vw*0.16&&
+        Math.abs((f.boundingBox.y+f.boundingBox.height/2)-vh*0.46)<vh*0.16;
+      // STRICT FRONTAL RULE: both eyes visible and level, symmetric about the
+      // face centre — rejects profile / turned heads (eyes must face straight)
+      if(good&&f.landmarks&&f.landmarks.length){
+        const eyes=f.landmarks.filter(l=>l.type==="eye").map(l=>l.locations?l.locations[0]:l.location).filter(Boolean);
+        if(eyes.length>=2){
+          const [e1,e2]=eyes,cx=f.boundingBox.x+f.boundingBox.width/2;
+          const dL=Math.abs(cx-Math.min(e1.x,e2.x)),dR=Math.abs(Math.max(e1.x,e2.x)-cx);
+          const level=Math.abs(e1.y-e2.y)<f.boundingBox.height*0.08;      // eyes level
+          const sym=Math.abs(dL-dR)<f.boundingBox.width*0.18;             // head not turned
+          const apart=Math.abs(e1.x-e2.x)>f.boundingBox.width*0.28;      // both eyes on-camera
+          good=level&&sym&&apart;
+        }else good=false;   // fewer than 2 eyes detected → not facing straight
+      }
+      if(good){streak++;oval.style.borderColor="var(--ok)";
+        status.textContent="🟢 "+t("photoHold")+" "+"●".repeat(streak)+"○".repeat(Math.max(0,3-streak));
+        if(streak>=3)captured(snap());
+      }else{streak=0;oval.style.borderColor="rgba(59,130,246,.9)";
+        status.textContent="� "+(LANG==="zh"?"請正面直視鏡頭，雙眼對準":LANG==="es"?"MIRE DE FRENTE A LA CÁMARA — AMBOS OJOS":"FACE THE CAMERA STRAIGHT — BOTH EYES ON LENS");}
+    },350);
+  }else{
+    // no FaceDetector (iPad Safari, Firefox): hold-still countdown auto-capture
+    let n=3;
+    status.textContent="👤 "+t("photoLook");
+    setTimeout(()=>{
+      faceTimer=setInterval(()=>{
+        status.textContent="🟢 "+t("photoHold")+" "+n;
+        oval.style.borderColor="var(--ok)";
+        if(n--<=0)captured(snap());
+      },800);
+    },1400);
+  }
+}
+
+function waitView(){
+  $("#stage").innerHTML=`${stepper(3)}<div class="big-status"><div class="icon">⏳</div>
+    <h2>${t("waiting")}</h2><p class="sub">Your host and the security team have been notified.</p></div>
+    <button class="ghost" id="cancel">✕ Cancel</button>`;
+  $("#cancel").onclick=formView;
+  POLL=setInterval(async()=>{
+    try{
+      const r=await fetch(`/api/visitor/status/${VISIT}?device=${encodeURIComponent(CRED)}`);
+      if(!r.ok)return;
+      const d=await r.json();
+      if(d.status==="checked_in"||d.status==="approved")badgeView(d);
+      else if(d.status==="denied")deniedView();
+    }catch{}
+  },4000);
+}
+
+function badgeView(d){
+  clearInterval(POLL);
+  const exp=d.badge_expires_at?new Date(d.badge_expires_at):null;
+  $("#stage").innerHTML=`<div class="big-status"><div class="icon">🪪</div>
+    <h2 style="color:var(--ok)">${t("approved")}</h2>
+    <p class="sub">${d.visitor_name} — badge expires ${exp?exp.toLocaleTimeString():"end of day"}.<br>
+    Please wear your visitor badge visibly at all times.<br><br>
+    ${LANG==="zh"?"離開時請在簽到機掃描證件二維碼即可簽退。"
+      :LANG==="es"?"Para salir, escanee el código QR de su credencial en el quiosco de fichaje."
+      :"To check out, simply scan your badge QR at the check-in kiosk when leaving."}</p></div>`;
+  // automatic session clearing — back to the main page after 3 s
+  setTimeout(gateView,3000);
+}
+
+function deniedView(){
+  clearInterval(POLL);
+  $("#stage").innerHTML=`<div class="big-status"><div class="icon">⛔</div>
+    <h2 style="color:var(--err)">${t("denied")}</h2></div>
+    <button class="ghost" id="back">← Back</button>`;
+  $("#back").onclick=gateView;
+  setTimeout(gateView,8000);
+}
+
+if(CRED){led(true);gateView();}else enrollView();
+</script>
+</body>
+</html>

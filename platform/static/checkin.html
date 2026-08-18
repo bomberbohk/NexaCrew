@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Time Clock">
+<title>Worker Check-In Kiosk</title>
+<style>
+  :root{--bg:#0a0f1c;--panel:#121b30;--line:#22304e;--fg:#e6edf8;--mut:#8296bb;
+        --acc:#3b82f6;--ok:#10b981;--err:#f43f5e;--warn:#f59e0b}
+  *{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  body{background:radial-gradient(1000px 600px at 70% -10%,#14203c,var(--bg) 55%);
+       color:var(--fg);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;
+       height:100vh;height:100dvh;padding-top:env(safe-area-inset-top);
+       display:flex;flex-direction:column;overflow:hidden;touch-action:manipulation}
+  header{display:flex;align-items:center;gap:14px;padding:12px 22px;
+         border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.08em}
+  header b{font-size:14px}
+  .led{width:10px;height:10px;border-radius:50%;background:var(--err)}
+  .led.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  #clock{margin-left:auto;font-family:Consolas,monospace;font-size:15px}
+  main{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px;padding:24px}
+  .card{background:linear-gradient(165deg,var(--panel),#0e1730);border:1px solid var(--line);
+        border-radius:22px;padding:44px 48px;width:540px;max-width:95vw;text-align:center;
+        box-shadow:0 8px 40px rgba(0,0,0,.5)}
+  h1{font-size:26px;margin-bottom:8px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:28px}
+  input{width:100%;font:inherit;color:inherit;background:#0b1220;border:1.5px solid var(--line);
+        border-radius:14px;padding:16px;outline:none;text-align:center;font-size:17px;
+        font-family:Consolas,monospace}
+  input:focus{border-color:var(--acc)}
+  button{font:inherit;color:#fff;background:linear-gradient(135deg,var(--acc),#2563eb);
+         border:none;border-radius:14px;padding:16px 34px;font-weight:700;cursor:pointer;
+         font-size:16px;width:100%;margin-top:16px}
+  button:active{transform:scale(.97)}
+  #result{display:none}
+  #result .big{font-size:74px;margin-bottom:10px}
+  #result h2{font-size:30px;margin-bottom:6px}
+  #result .when{color:var(--mut);font-size:14px}
+  .ok-bg{border-color:var(--ok)!important}
+  .err-bg{border-color:var(--err)!important}
+  footer{padding:10px 22px;border-top:1px solid var(--line);font-size:10.5px;
+         color:var(--mut);letter-spacing:.06em;text-align:center}
+</style>
+</head>
+<body>
+<header><b>⏱ WORKER CHECK-IN / CHECK-OUT</b>
+  <span class="led" id="led"></span><span id="conn">NOT ENROLLED</span>
+  <span id="devname"></span><span id="clock">—</span></header>
+<main>
+  <div class="card" id="enroll">
+    <h1>⏱ Time Clock Kiosk</h1>
+    <p class="sub">DEVICE ENROLLMENT — enter the single-use code issued by your administrator.<br>
+       This device receives its own bound credential; the code cannot be reused.</p>
+    <input id="code" placeholder="ek-…" autocomplete="off">
+    <button id="do-enroll">🔐 ENROLL THIS DEVICE</button>
+    <p id="enroll-err" style="color:var(--err);margin-top:12px;display:none;font-weight:600"></p>
+  </div>
+
+  <div class="card" id="scan" style="display:none">
+    <h1>👋 Scan your badge</h1>
+    <p class="sub">Hold your worker or visitor QR badge up to the camera.<br>
+       Your punch is recorded immediately and cannot be lost.</p>
+    <div id="cam-wrap" style="position:relative;width:min(360px,86vw);margin:0 auto 14px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);background:#000">
+      <video id="cam" playsinline muted style="width:100%;display:block;aspect-ratio:1/1;object-fit:cover"></video>
+      <div style="position:absolute;inset:12%;border:2.5px solid rgba(79,142,247,.85);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.35);pointer-events:none"></div>
+      <div id="cam-gate" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(6,10,22,.92);text-align:center;padding:20px">
+        <div style="font-size:44px">📷</div>
+        <div style="font-weight:800;font-size:15px;letter-spacing:.02em">CAMERA SCANNER</div>
+        <div id="cam-gate-msg" style="font-size:12px;color:var(--mut);line-height:1.7;max-width:280px">
+          This kiosk uses the camera to read badge QR codes.
+          Your browser will ask for permission — tap <b>Allow</b>.</div>
+        <button id="cam-enable" style="width:auto;padding:13px 30px;font-size:14px">🔓 ENABLE CAMERA</button>
+      </div>
+      <div id="cam-status" style="position:absolute;left:0;right:0;bottom:0;padding:6px;font-size:11px;letter-spacing:.06em;text-align:center;background:rgba(6,10,22,.75)">CAMERA OFF</div>
+    </div>
+    <p id="cam-err" style="display:none;color:var(--err);font-weight:600;font-size:12.5px;margin-bottom:10px;line-height:1.7"></p>
+    <input id="badge" placeholder="…or scan with a handheld scanner (wb-… / vb-…)" autocomplete="off" inputmode="none" style="font-size:14px">
+    <p style="margin-top:10px;font-size:11px;color:var(--mut)">Camera decodes automatically · handheld scanner keyboards submit on Enter</p>
+  </div>
+
+  <div class="card" id="result">
+    <div class="big" id="r-icon">✅</div>
+    <h2 id="r-title">—</h2>
+    <p class="when" id="r-when">—</p>
+  </div>
+</main>
+<footer>PRIVACY: this kiosk displays only your first name and punch time — no personal data
+is stored on the device. The screen clears automatically after every scan.</footer>
+
+<script>
+"use strict";
+const $=(s)=>document.querySelector(s);
+let CRED=localStorage.getItem("checkinCred")||"",DEV=null;
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2);
+setInterval(()=>$("#clock").textContent=new Date().toLocaleString(),1000);
+
+function show(id){["enroll","scan","result"].forEach(x=>$("#"+x).style.display=x===id?"block":"none");}
+function setConn(ok,name){$("#led").className="led "+(ok?"ok":"");
+  $("#conn").textContent=ok?"ENROLLED":"NOT ENROLLED";
+  $("#devname").textContent=name?("· "+name):"";}
+
+$("#do-enroll").onclick=async()=>{
+  $("#enroll-err").style.display="none";
+  try{
+    const r=await fetch("/api/workforce/enroll",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({code:$("#code").value.trim(),client_info:navigator.userAgent.slice(0,150)})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.detail||"Enrollment failed");
+    CRED=d.credential;localStorage.setItem("checkinCred",CRED);
+    DEV=d;setConn(true,d.name);show("scan");startCam();$("#badge").focus();
+  }catch(e){$("#enroll-err").textContent="❌ "+e.message;$("#enroll-err").style.display="block";}
+};
+
+async function submitBadge(code){
+  if(!code)return;
+  stopCam();               // freeze scanning while we talk to the server
+  try{
+    const r=await fetch("/api/workforce/scan",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({device:CRED,badge:code,idempotency_key:uuid()})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.detail||"Scan failed");
+    const isIn=d.event==="in";
+    $("#r-icon").textContent=d.result==="duplicate"?"⚠️":(isIn?"✅":"👋");
+    $("#r-title").textContent=d.result==="duplicate"
+      ?"Already recorded — take a breath!"
+      :`${d.worker.split(" ")[0]} — CLOCKED ${d.event.toUpperCase()}`;
+    $("#r-when").textContent=new Date(d.at).toLocaleTimeString();
+    $("#result").className="card "+(d.result==="duplicate"?"err-bg":"ok-bg");
+  }catch(err){
+    $("#r-icon").textContent="⛔";
+    $("#r-title").textContent="Access denied";
+    $("#r-when").textContent=err.message;
+    $("#result").className="card err-bg";
+  }
+  show("result");
+  setTimeout(()=>{show("scan");startCam();$("#badge").focus();},3000);  // auto session clear
+}
+
+$("#badge").addEventListener("keydown",(e)=>{
+  if(e.key!=="Enter")return;
+  const code=$("#badge").value.trim();$("#badge").value="";
+  submitBadge(code);
+});
+
+/* ============ camera QR scanning ============
+   Camera activation is behind an explicit user gesture (ENABLE CAMERA) so the
+   browser reliably shows its permission prompt the first time. Once granted,
+   the permission is remembered and the camera auto-starts on later visits.
+   Primary decoder: native BarcodeDetector (Chrome/Edge/Android).
+   Fallback: jsQR. A handheld scanner (keyboard wedge) always works. */
+let camStream=null,camTimer=null,lastHit=0,camGranted=localStorage.getItem("camGranted")==="1";
+function stopCam(){
+  if(camTimer){clearInterval(camTimer);camTimer=null;}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+}
+function gate(show,msg){
+  const g=$("#cam-gate");g.style.display=show?"flex":"none";
+  if(msg)$("#cam-gate-msg").innerHTML=msg;
+}
+async function startCam(){
+  const video=$("#cam"),status=$("#cam-status"),errBox=$("#cam-err");
+  errBox.style.display="none";
+  stopCam();
+  // Pre-flight diagnostics — precise, actionable messages
+  if(!window.isSecureContext){
+    camFail(`This page is served over insecure HTTP (<code>${location.origin}</code>), so the browser refuses camera access.<br>
+      \u2022 Open the kiosk via <b>https://\u2026</b> or <b>http://localhost:8600/checkin</b> on the server itself, or<br>
+      \u2022 On the kiosk's Chrome, open <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>, add <code>${location.origin}</code>, relaunch.`);
+    return;
+  }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    camFail("This browser has no camera API — update the browser or use a handheld scanner.");return;
+  }
+  gate(false);
+  status.textContent="REQUESTING CAMERA PERMISSION…";
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment",width:{ideal:1280},height:{ideal:1280}},audio:false});
+  }catch(e){
+    if(e&&(e.name==="NotAllowedError"||e.name==="PermissionDeniedError")){
+      localStorage.removeItem("camGranted");camGranted=false;
+      // distinguish site-level denial from OS-level camera privacy block
+      let site="unknown";
+      try{const p=await navigator.permissions.query({name:"camera"});site=p.state;}catch{}
+      if(site==="granted"){
+        camFail(`The site permission is <b>Allowed</b>, but the operating system is blocking the camera.<br>
+          On Windows: <b>Settings → Privacy &amp; security → Camera</b> — turn ON
+          <b>Camera access</b>, <b>Let apps access your camera</b> and
+          <b>Let desktop apps access your camera</b> (this covers Chrome/Edge), then press RETRY.`);
+      }else{
+        camFail(`Camera permission was <b>denied</b> (site permission: ${site}). Click the \ud83d\udd12 / camera icon in the address bar,
+          set Camera to <b>Allow</b> for this site, then press RETRY.
+          <br>If it is already Allow, check Windows: <b>Settings → Privacy &amp; security → Camera → Let desktop apps access your camera</b>.`);
+      }
+    }else if(e&&e.name==="NotFoundError"){
+      camFail("No camera detected on this device — connect a webcam or use a handheld scanner.");
+    }else if(e&&e.name==="NotReadableError"){
+      camFail("The camera is in use by another application — close it and press RETRY.");
+    }else{
+      camFail("Camera could not be started ("+((e&&e.name)||"unknown")+") — press RETRY or use a handheld scanner.");
+    }
+    return;
+  }
+  localStorage.setItem("camGranted","1");camGranted=true;
+  video.srcObject=camStream;
+  try{await video.play();}catch{}
+  status.textContent="📷 POINT THE BADGE QR AT THE CAMERA";
+  let detector=null;
+  if("BarcodeDetector"in window){
+    try{
+      const fmts=await window.BarcodeDetector.getSupportedFormats();
+      if(fmts.includes("qr_code"))detector=new window.BarcodeDetector({formats:["qr_code"]});
+    }catch{}
+  }
+  let jsqr=null;
+  if(!detector){
+    status.textContent="LOADING QR DECODER…";
+    try{
+      await new Promise((res,rej)=>{const s=document.createElement("script");
+        s.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+      jsqr=window.jsQR;
+      status.textContent="📷 POINT THE BADGE QR AT THE CAMERA";
+    }catch{
+      camFail("No QR decoder available offline — use a handheld scanner");return;
+    }
+  }
+  const canvas=document.createElement("canvas"),ctx=canvas.getContext("2d",{willReadFrequently:true});
+  camTimer=setInterval(async()=>{
+    if(!video.videoWidth)return;
+    if(Date.now()-lastHit<2500)return;      // debounce between reads
+    let text="";
+    try{
+      if(detector){
+        const codes=await detector.detect(video);
+        if(codes.length)text=codes[0].rawValue||"";
+      }else{
+        canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+        ctx.drawImage(video,0,0);
+        const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const q=jsqr(img.data,img.width,img.height,{inversionAttempts:"dontInvert"});
+        if(q&&q.data)text=q.data;
+      }
+    }catch{}
+    text=(text||"").trim();
+    if(!text)return;
+    lastHit=Date.now();
+    status.textContent="✅ BADGE DETECTED";
+    if(navigator.vibrate)navigator.vibrate(80);
+    submitBadge(text);
+  },350);
+}
+function camFail(msgHtml){
+  const errBox=$("#cam-err");
+  errBox.innerHTML="📷 "+msgHtml;errBox.style.display="block";
+  $("#cam-status").textContent="CAMERA UNAVAILABLE — HANDHELD SCANNER MODE";
+  gate(true,"Camera unavailable — see the message below the viewfinder.<br>You can retry after fixing it.");
+  $("#cam-enable").textContent="🔄 RETRY CAMERA";
+  $("#badge").focus();
+}
+$("#cam-enable").onclick=()=>startCam();   // user gesture → reliable permission prompt
+
+if(CRED){
+  setConn(true,"");show("scan");
+  // auto-start only when permission was granted before; otherwise show the
+  // ENABLE CAMERA gate so the first-time prompt comes from a user gesture
+  if(camGranted)startCam();else gate(true);
+  setTimeout(()=>$("#badge").focus(),100);
+}
+else show("enroll");
+document.addEventListener("click",(e)=>{if(CRED&&$("#scan").style.display==="block"&&!e.target.closest("#cam-wrap"))$("#badge").focus();});
+</script>
+</body>
+</html>

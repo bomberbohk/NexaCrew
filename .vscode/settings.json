@@ -1,0 +1,61 @@
+{
+  // Don't watch these folders for file changes (biggest CPU saver)
+  "files.watcherExclude": {
+    "**/.venv/**": true,
+    "**/.venv-linux/**": true,
+    "**/__pycache__/**": true,
+    "**/.pytest_cache/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/platform/data/**": true,
+    "**/platform/static/vendor/**": true
+  },
+  // Exclude from search indexing (Copilot Chat's local index also respects this)
+  "search.exclude": {
+    "**/.venv": true,
+    "**/.venv-linux": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/*.dll": true,
+    "**/*.pyd": true,
+    "**/*.dat": true,
+    "**/_dbg_*.jpg": true,
+    "**/platform/data": true,
+    "**/platform/static/vendor": true,
+    "**/*.zip": true,
+    "**/*.db": true,
+    "**/*.wasm.js": true,
+    "**/*.traineddata.gz": true
+  },
+  // Don't follow symlinks when searching (venvs often contain them)
+  "search.followSymlinks": false,
+  // Hide from explorer (optional, comment out if you want them visible)
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true
+  },
+  // Stop Pylance from analyzing the venvs' source
+  "python.analysis.exclude": [
+    "**/.venv/**",
+    "**/.venv-linux/**",
+    "**/__pycache__/**"
+  ],
+  // Point Python extension to the interpreter without indexing everything
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  // Don't let git scan/decorate the large data folders constantly
+  "git.autorefresh": false,
+  "git.autofetch": false,
+  // Avoid tokenizing/minimap work on accidentally-opened huge files
+  "editor.largeFileOptimizations": true,
+  "editor.minimap.enabled": false,
+  // Keep Pylance memory bounded
+  "python.analysis.indexing": false,
+  "python.analysis.userFileIndexingLimit": 500,
+  // Irrelevant heavy extensions in this Python workspace
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "cmake.configureOnOpen": false,
+  "java.import.gradle.enabled": false,
+  "java.import.maven.enabled": false,
+  "java.autobuild.enabled": false,
+  "github.copilot.nextEditSuggestions.enabled": true
+}
