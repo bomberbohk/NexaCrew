@@ -33,8 +33,8 @@
 **Server (Windows / macOS / Linux)** — Python 3.9+ (3.12 recommended):
 
 ```bash
-git clone https://github.com/bomberbohk/AGENT_AI.git
-cd AGENT_AI
+git clone https://github.com/bomberbohk/NexaCrew.git
+cd NexaCrew
 python start.py        # creates venv, installs deps, starts server + tray
 ```
 
