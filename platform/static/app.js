@@ -350,15 +350,20 @@ async function initAuth() {
     clearDeviceRole();
     state._deployMenu = true;
   } else if (qs.get("station")) {
-    // station links are self-provisioning — opening one binds the device
-    saveDeviceRole({ mode: "station", code: qs.get("station") });
+    // a ?station= link is SESSION-ONLY: it shows the station workbench for
+    // this visit but never binds the browser. Permanent binding happens only
+    // through the explicit ?deploy provisioning menu. (Previously the link
+    // self-provisioned — a desktop browser that ever opened one was dragged
+    // back into station mode on every normal sign-in.)
   } else {
     const role = deviceRole();
     if (role && role.mode === "kiosk" && role.path) {
       location.replace(role.path); return;      // kiosk pages run standalone
     }
-    if (role && role.mode === "station" && role.code) {
+    if (role && role.mode === "station" && role.code && role.provisioned) {
       history.replaceState(null, "", "/?station=" + encodeURIComponent(role.code));
+    } else if (role && role.mode === "station" && !role.provisioned) {
+      clearDeviceRole();   // stale self-provisioned binding from older versions
     }
   }
   // register station/kiosk devices immediately — even on the login screen —
@@ -763,7 +768,8 @@ async function showDeployMenu() {
   $$("#modal-root .dep-kiosk").forEach(b => b.onclick = () =>
     finish({ mode: "kiosk", kind: b.dataset.kind, path: b.dataset.path }, b.dataset.path));
   $$("#modal-root .dep-station").forEach(b => b.onclick = () =>
-    finish({ mode: "station", code: b.dataset.code }, "/?station=" + encodeURIComponent(b.dataset.code)));
+    finish({ mode: "station", code: b.dataset.code, provisioned: true },
+      "/?station=" + encodeURIComponent(b.dataset.code)));
   const s = $("#dep-search");
   if (s) s.oninput = () => {
     const q = s.value.trim().toLowerCase();
@@ -805,10 +811,8 @@ async function showApp() {
   }
   $("#logout-btn").onclick = async () => {
     try { await api("/auth/logout", { method: "POST" }); } catch { }
-    // signing out releases this browser from station mode: forget the
-    // self-provisioned role and drop the ?station= query so the next
-    // sign-in lands in the normal workspace (use ?station=… again to rebind)
-    if (state.station) clearDeviceRole();
+    // drop the ?station= query: session-only station links end at sign-out;
+    // deploy-provisioned terminals re-enter their role automatically
     location.replace(location.pathname);
   };
   $$(".nav-item[data-view]").forEach(b => b.onclick = () => nav(b.dataset.view));
@@ -3619,7 +3623,6 @@ function renderBusinessWorkspace(root, ws) {
   const stOut = $("#station-logout");
   if (stOut) stOut.onclick = async () => {
     try { await api("/auth/logout", { method: "POST" }); } catch { }
-    clearDeviceRole();                       // release the station binding
     location.replace(location.pathname);     // drop ?station= → normal login
   };
   const stLang = $("#station-lang");
