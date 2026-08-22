@@ -284,8 +284,16 @@ def run_tray(host: str, port: int, role: str) -> int:
             time.sleep(POLL_S)
 
     threading.Thread(target=poller, daemon=True).start()
-    icon.run()   # blocks on the platform-native main loop (Win32/Cocoa/GTK-X11)
-    return 0
+    # the Win32 tray can fail transiently (Explorer restart, session startup
+    # race) — retry instead of dying silently with no icon
+    for attempt in range(3):
+        try:
+            icon.run()   # blocks on the platform-native main loop
+            return 0     # user closed the icon
+        except Exception as e:  # noqa: BLE001
+            print(f"tray loop failed (attempt {attempt + 1}/3): {e}", file=sys.stderr)
+            time.sleep(5 * (attempt + 1))
+    return 1
 
 
 # ---------------------------------------------------------------- panel ----

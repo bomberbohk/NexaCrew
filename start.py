@@ -1047,12 +1047,17 @@ def launch_status_widgets(py: Path, host: str, port: int, role: str = "server") 
         return
     py = _widget_python(py)   # ensure interpreter has pystray/Pillow for the tray icon
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+    logs_dir = PLATFORM_DIR / "data"
+    logs_dir.mkdir(parents=True, exist_ok=True)
     for mode in ("widget", "tray"):
         try:
+            # log to a file (overwritten each start) — DEVNULL hid every tray
+            # failure and made "no tray icon" undiagnosable
+            logf = open(logs_dir / f"widget_{mode}.log", "w", encoding="utf-8")
             subprocess.Popen([str(py), str(script), mode,
                               "--host", host, "--port", str(port), "--role", role],
                              creationflags=flags,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                             stdout=logf, stderr=subprocess.STDOUT)
         except OSError as e:
             log(f"Status {mode} could not start ({e}) — continuing without it.")
     log("🖥 Desktop status widget + system tray icon started — "

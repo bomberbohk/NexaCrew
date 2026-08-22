@@ -254,12 +254,10 @@ async function returningView(){
     <p class="err" id="e" style="display:none"></p>`;
   $("#g-back").onclick=()=>{stopFaceCam();formView();};
   const video=$("#fv"),status=$("#fstatus"),oval=$("#oval");
-  try{
-    faceStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"user",width:{ideal:960},height:{ideal:1280}},audio:false});
-  }catch(e){status.textContent="📷 "+t("photoCam");return;}
-  video.srcObject=faceStream;
-  try{await video.play();}catch{}
+  faceStream=await openCam(video,status,
+    {facingMode:"user",width:{ideal:960},height:{ideal:1280},
+     advanced:[{focusMode:"continuous"}]});
+  if(!faceStream)return;
   const snap=()=>{
     const c=$("#fc");c.width=480;c.height=640;
     const ctx=c.getContext("2d");
@@ -313,7 +311,10 @@ async function returningView(){
       clearTimeout(kill);
       const d=await r.json().catch(()=>({}));
       if(r.ok)sm=d;
-    }catch{}
+    }catch(e){
+      // surface the timeout instead of a silently-frozen progress bar
+      sm={match:false,reason:e&&e.name==="AbortError"?"server timeout":"server unreachable"};
+    }
     await finishBar();
     if(sm&&sm.match){
       sm.engines=LANG==="zh"?"伺服器引擎":"server engine";
@@ -553,18 +554,14 @@ async function docView(shot,done){
     </div>
     <p class="err" id="e" style="display:none"></p>`;
   const video=$("#dv"),status=$("#dstatus"),frame=$("#dframe"),alertBox=$("#dalert");
-  try{
-    faceStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"environment",width:{ideal:2560},height:{ideal:1600},
-        advanced:[{focusMode:"continuous"}]},audio:false});
-  }catch(e){
-    status.textContent="📷 "+t("photoCam");
+  faceStream=await openCam(video,status,
+    {facingMode:"environment",width:{ideal:1920,max:2560},height:{ideal:1200,max:1600},
+     advanced:[{focusMode:"continuous"}]});
+  if(!faceStream){
     $("#dsnap").textContent=LANG==="zh"?"繼續（無相機）":LANG==="es"?"CONTINUAR (SIN CÁMARA)":"CONTINUE (NO CAMERA)";
     $("#dsnap").onclick=()=>done("");
     return;
   }
-  video.srcObject=faceStream;
-  try{await video.play();}catch{}
   status.textContent="📄 "+(LANG==="zh"?"正在驗證證件…":LANG==="es"?"VERIFICANDO DOCUMENTO…":"VERIFYING DOCUMENT…");
   // verification engines: PDF417/QR (license backs) + portrait photo detection
   let bd=null,fd=null;
@@ -605,7 +602,7 @@ async function docView(shot,done){
   };
   const verify=async(src,canvas)=>{ // certified = barcode (back) / card-sized printed portrait (front)
     // 1) machine-readable barcode (PDF417 on license/ID backs) — strongest proof
-    try{if(bd&&(await bd.detect(src)).length)return true;}catch{}
+    try{if(bd&&(await bd.detect(src)).length)return "barcode";}catch{}
     // 2) faces: only a SMALL printed portrait counts — a large face means a
     //    real person is in front of the camera, NOT a document → reject
     try{
@@ -669,23 +666,28 @@ async function docView(shot,done){
         status.textContent="🔍 "+(LANG==="zh"?"影像不夠清晰 — 請拿穩並對焦":LANG==="es"?"IMAGEN BORROSA — SOSTENGA FIRME Y ENFOQUE":"IMAGE NOT SHARP — HOLD STEADY, LET THE CAMERA FOCUS");
         return;
       }
-      streak++;alertBox.style.display="none";frame.style.borderColor="var(--ok)";
-      status.textContent="🟢 "+(LANG==="zh"?"清晰度良好 — 請保持不動":LANG==="es"?"NÍTIDO — NO SE MUEVA":"SHARP & RECOGNISED — HOLD STILL")+" "+"●".repeat(Math.min(streak,3))+"○".repeat(Math.max(0,3-streak));
-      if(streak>=3){
+      // a decoded barcode is definitive proof — capture immediately;
+      // otherwise two consecutive sharp verified frames (~0.7 s) suffice
+      streak+=(ok==="barcode"?2:1);
+      alertBox.style.display="none";frame.style.borderColor="var(--ok)";
+      status.textContent="🟢 "+(LANG==="zh"?"清晰度良好 — 請保持不動":LANG==="es"?"NÍTIDO — NO SE MUEVA":"SHARP & RECOGNISED — HOLD STILL")+" "+"●".repeat(Math.min(streak,2))+"○".repeat(Math.max(0,2-streak));
+      if(streak>=2){
         const c=snap();
-        if(sharpness(c)<SHARP_MIN){streak=0;return;}   // final full-res clarity check
+        // final full-res check with tolerance — the crop is already verified
+        // sharp; demanding the same score again caused endless retry loops
+        if(sharpness(c)<SHARP_MIN*0.7){streak=1;return;}
         accept(c);
       }
     }else{
       streak=0;frame.style.borderColor="rgba(96,165,250,.95)";
       status.textContent="📄 "+(LANG==="zh"?"正在驗證… 請將證件填滿框格":LANG==="es"?"VERIFICANDO… LLENE EL MARCO":"VERIFYING… FILL THE FRAME WITH THE DOCUMENT");
     }
-  },450);
+  },350);
   $("#dsnap").onclick=async()=>{
     const z=cropZoom();
     if(await verify(z,z)){
       const c=snap();
-      if(sharpness(c)>=SHARP_MIN)return accept(c);
+      if(sharpness(c)>=SHARP_MIN*0.7)return accept(c);
       alertBox.textContent=LANG==="zh"?"⚠ 影像太模糊 — 請拿穩證件，等待對焦後再拍":LANG==="es"?"⚠ Demasiado borroso — sostenga firme y espere el enfoque":"⚠ Too blurry — hold the document steady and wait for the camera to focus";
       alertBox.style.display="block";frame.style.borderColor="#eab308";
       if(navigator.vibrate)navigator.vibrate([60,40,60]);
@@ -728,14 +730,10 @@ async function badgeCapture(){
     $("#dlive").style.display=no?"none":"block";
   };
   $("#dcontinue").onclick=()=>{stopFaceCam();photoView();};
-  try{
-    faceStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"environment",width:{ideal:2560},height:{ideal:1600},
-        advanced:[{focusMode:"continuous"}]},audio:false});
-    video.srcObject=faceStream;
-    try{await video.play();}catch{}
-    status.textContent="🏷 "+(LANG==="zh"?"對準識別證後按拍攝":LANG==="es"?"ENCUADRE Y CAPTURE":"ALIGN THE BADGE, THEN CAPTURE");
-  }catch(e){status.textContent="📷 "+t("photoCam");}
+  faceStream=await openCam(video,status,
+    {facingMode:"environment",width:{ideal:1920,max:2560},height:{ideal:1200,max:1600},
+     advanced:[{focusMode:"continuous"}]});
+  if(faceStream)status.textContent="🏷 "+(LANG==="zh"?"對準識別證後按拍攝":LANG==="es"?"ENCUADRE Y CAPTURE":"ALIGN THE BADGE, THEN CAPTURE");
   $("#dsnap").onclick=()=>{
     if(!video.videoWidth){photoView();return;}
     const vw=video.videoWidth,vh=video.videoHeight;
@@ -762,6 +760,34 @@ function stopFaceCam(){
   if(faceTimer){clearInterval(faceTimer);faceTimer=null;}
   if(faceStream){faceStream.getTracks().forEach(t=>t.stop());faceStream=null;}
 }
+/* openCam — robust camera opener for ALL kiosk views.
+   Desktop Edge/Chrome often has NO back camera: facingMode:"environment" or
+   high ideal resolutions throw OverconstrainedError. Retry with the ideal
+   constraints first, then progressively looser ones, and SURFACE any error
+   instead of failing silently (the ISO-demo "camera dead in Edge" bug). */
+async function openCam(video,status,constraints){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    if(status)status.textContent="📷 "+t("photoCam");
+    return null;
+  }
+  const attempts=[constraints,
+    {width:{ideal:1920},height:{ideal:1080}},   // any camera, HD
+    {width:{ideal:1280}},                        // any camera, loose
+    true];                                       // absolute fallback
+  let stream=null,lastErr=null;
+  for(const vc of attempts){
+    try{stream=await navigator.mediaDevices.getUserMedia({video:vc,audio:false});break;}
+    catch(e){lastErr=e;if(e.name==="NotAllowedError")break;}   // denied — retries won't help
+  }
+  if(!stream){
+    if(status)status.textContent="📷 "+t("photoCam")+(lastErr?" ("+(lastErr.name||lastErr.message)+")":"");
+    return null;
+  }
+  video.srcObject=stream;
+  try{await video.play();}
+  catch(e){if(status)status.textContent="⚠ "+(e.message||"video blocked — tap the video to start");}
+  return stream;
+}
 async function photoView(){
   stopFaceCam();
   $("#stage").innerHTML=`${stepper(2)}<h1>📸 ${t("photoTitle")}</h1>
@@ -783,14 +809,10 @@ async function photoView(){
     <p class="err" id="e" style="display:none"></p>`;
   $("#fskip").onclick=()=>registerVisit("",PHOTOS).catch(err=>{$("#e").textContent="❌ "+err.message;$("#e").style.display="block";});
   const video=$("#fv"),status=$("#fstatus"),oval=$("#oval");
-  try{
-    faceStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"user",width:{ideal:960},height:{ideal:1280}},audio:false});
-  }catch(e){
-    status.textContent="📷 "+t("photoCam");return;
-  }
-  video.srcObject=faceStream;
-  try{await video.play();}catch{}
+  faceStream=await openCam(video,status,
+    {facingMode:"user",width:{ideal:960},height:{ideal:1280},
+     advanced:[{focusMode:"continuous"}]});
+  if(!faceStream)return;
   const snap=()=>{
     const c=$("#fc"),s=Math.min(video.videoWidth,video.videoHeight);
     c.width=480;c.height=640;

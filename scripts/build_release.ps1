@@ -40,6 +40,15 @@ foreach ($rel in $include) {
 Copy-Item (Join-Path $Root "platform\requirements.txt") (Join-Path $StagePkg "platform\requirements.txt")
 Copy-Item (Join-Path $Root "VERSION") (Join-Path $StagePkg "VERSION")
 Copy-Item (Join-Path $Root "README.md") (Join-Path $StagePkg "README.md") -ErrorAction SilentlyContinue
+# root launcher scripts — servers updated from the portal must receive tray /
+# watchdog / installer fixes too, not just platform/ code
+$rootScripts = @("start.py", "client_start.py", "tray_widget.py", "action_prompt.py",
+                 "console_manager.py", "console_setup.py", "install_wizard.py",
+                 "orchestrator.py", "agent_gui.py", "requirements.txt")
+foreach ($f in $rootScripts) {
+    $src = Join-Path $Root $f
+    if (Test-Path $src) { Copy-Item $src (Join-Path $StagePkg $f) }
+}
 
 # strip caches — deterministic, smaller archives
 Get-ChildItem $StagePkg -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force

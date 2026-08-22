@@ -803,7 +803,14 @@ async function showApp() {
     // re-invoking after sign-in attaches the operator name to the device
     startDeviceBeacon(state.station);
   }
-  $("#logout-btn").onclick = async () => { await api("/auth/logout", { method: "POST" }); location.reload(); };
+  $("#logout-btn").onclick = async () => {
+    try { await api("/auth/logout", { method: "POST" }); } catch { }
+    // signing out releases this browser from station mode: forget the
+    // self-provisioned role and drop the ?station= query so the next
+    // sign-in lands in the normal workspace (use ?station=… again to rebind)
+    if (state.station) clearDeviceRole();
+    location.replace(location.pathname);
+  };
   $$(".nav-item[data-view]").forEach(b => b.onclick = () => nav(b.dataset.view));
   initNavSearch();
   initNavCollapse();
@@ -3610,7 +3617,11 @@ function renderBusinessWorkspace(root, ws) {
     catch { prompt(t("Copy this station link and open it on the workbench laptop:"), url); }
   };
   const stOut = $("#station-logout");
-  if (stOut) stOut.onclick = async () => { await api("/auth/logout", { method: "POST" }); location.reload(); };
+  if (stOut) stOut.onclick = async () => {
+    try { await api("/auth/logout", { method: "POST" }); } catch { }
+    clearDeviceRole();                       // release the station binding
+    location.replace(location.pathname);     // drop ?station= → normal login
+  };
   const stLang = $("#station-lang");
   if (stLang) stLang.onchange = (e) => {
     CUR_LANG = e.target.value;

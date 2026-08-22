@@ -1101,6 +1101,31 @@ CASCADE_RULES: dict[str, list[dict]] = {
          "map": {"lot": "item", "at": "at", "inspector": "verified_by"},
          "set": {"source": "final QC", "status": "open"},
          "reason": "Final QC reject → NC report (FRM-QC-002)"},
+        {"when": ("decision", "release*"), "target": "outbound",
+         "map": {"lot": "contents", "at": "at", "approved_by": "released_by"},
+         "set": {"packing": "pending", "inspection": "pending", "status": "planned"},
+         "reason": "Final QC release → shipment record started (FRM-SHP-001)"},
+    ],
+    # N · Calibration & Equipment Maintenance (FRM-IMS-003)
+    "calibration_r2": [
+        {"when": ("tolerance", "no*"), "target": "nonconforming",
+         "map": {"equip_id": "item", "equipment": "desc", "at": "at", "by": "verified_by"},
+         "set": {"source": "internal audit", "status": "open"},
+         "reason": "equipment out of tolerance → NC report & quarantine (FRM-QC-002)"},
+    ],
+    # L · Safety incidents (FRM-SAF-006/007)
+    "ehs_incidents": [
+        {"when": ("type", "*spill*"), "target": "env_monitoring",
+         "map": {"at": "at", "desc": "result"},
+         "set": {"aspect": "spill containment", "compliant": "no — action required"},
+         "reason": "spill incident → environmental monitoring entry (FRM-ENV-005/006)"},
+    ],
+    # K · Waste & Hazardous Disposal (FRM-ENV-002/003)
+    "waste_disposal": [
+        {"when": ("type", "hazardous*"), "target": "env_monitoring",
+         "map": {"at": "at", "desc": "result"},
+         "set": {"aspect": "storage integrity", "compliant": "yes"},
+         "reason": "hazardous waste shipment → environmental monitoring entry (FRM-ENV-006)"},
     ],
     # J2 · Nonconforming (FRM-QC-002)
     "nonconforming": [

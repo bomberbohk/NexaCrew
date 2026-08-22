@@ -1860,7 +1860,6 @@ def _portal_auto_updater() -> None:
     heartbeat mechanism — the whole fleet follows the portal automatically."""
     import hashlib
     import random
-    import sys
     import tarfile
     import tempfile
     import urllib.request
@@ -1929,10 +1928,10 @@ def _portal_auto_updater() -> None:
                 pass
             print(f"✅ updated to v{remote} — restarting server", flush=True)
             _time.sleep(2)
-            try:
-                os.execv(sys.executable, [sys.executable] + sys.argv)
-            except OSError:
-                os._exit(3)  # supervisor (start.py watchdog / systemd) restarts us
+            # exit and let the supervisor (start.py watchdog / systemd) restart
+            # us — execv here spawned a SECOND server that fought the watchdog's
+            # restart for the port, causing an offline/restart storm
+            os._exit(3)
         except Exception as e:  # noqa: BLE001 — updater must never crash the server
             print(f"⚠ portal update check failed: {e} — retrying next cycle", flush=True)
 
