@@ -3220,6 +3220,10 @@ def _get_rapidocr():
     """Lazy-load the RapidOCR engine (onnxruntime based, no external binary)."""
     global _rapidocr_engine
     if _rapidocr_engine is None:
+        from .oscompat import cpu_supports_avx
+        if not cpu_supports_avx():   # onnxruntime wheels SIGILL on pre-AVX CPUs
+            raise RuntimeError("OCR disabled on this server: the CPU lacks AVX "
+                               "instructions required by onnxruntime")
         from rapidocr_onnxruntime import RapidOCR
         _rapidocr_engine = RapidOCR()
     return _rapidocr_engine

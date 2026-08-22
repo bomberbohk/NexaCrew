@@ -71,13 +71,23 @@ except ImportError:       # pragma: no cover — depends on env setuptools
 # SystemExit) when its models package is missing — capture it and emit a
 # single structured WARNING through the logger instead of polluting the
 # console.
-try:
-    with contextlib.redirect_stdout(io.StringIO()), \
-         contextlib.redirect_stderr(io.StringIO()):
-        import face_recognition as fr
-except BaseException:             # pragma: no cover — the lib calls quit()
-    fr = None                     # (SystemExit) when its models pkg is absent
-    log.warning(
+# On pre-AVX CPUs the dlib import dies with an UNCATCHABLE illegal-instruction
+# fault that kills the server — never attempt it there (OpenCV path remains).
+from .oscompat import cpu_supports_avx as _cpu_avx
+
+if not _cpu_avx():
+    fr = None
+    log.warning("CPU without AVX detected — dlib/DeepFace engines disabled, "
+                "using the OpenCV face pipeline (set NEXACREW_FORCE_AVX=1 to "
+                "override with self-built wheels)")
+else:
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), \
+             contextlib.redirect_stderr(io.StringIO()):
+            import face_recognition as fr
+    except BaseException:             # pragma: no cover — the lib calls quit()
+        fr = None                     # (SystemExit) when its models pkg is absent
+        log.warning(
         "face_recognition models package not installed — dlib matching "
         "disabled, falling back to OpenCV pipeline. Remediation: "
         "pip install git+https://github.com/ageitgey/face_recognition_models")
@@ -145,6 +155,9 @@ def _deepface():
     """Lazy DeepFace import (TensorFlow load is expensive)."""
     global _DEEPFACE
     if _DEEPFACE is None:
+        if not _cpu_avx():            # TF wheels SIGILL on pre-AVX CPUs
+            _DEEPFACE = False
+            return None
         try:
             from deepface import DeepFace
             _DEEPFACE = DeepFace

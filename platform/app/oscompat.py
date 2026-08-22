@@ -94,6 +94,56 @@ def _detect_raw() -> "tuple[str, str]":
     return system, platform.release()
 
 
+# ---------------------------------------------------------------- CPU tier
+# Prebuilt wheels for TensorFlow (DeepFace), dlib (face_recognition) and
+# onnxruntime (RapidOCR) require AVX. On pre-2011 server CPUs the *import*
+# dies with an uncatchable SIGILL / 0xC000001D that kills the whole server
+# process — so these engines must never be imported on such CPUs.
+# Override: NEXACREW_LIGHT_CPU=1 forces the lightweight path,
+#           NEXACREW_FORCE_AVX=1 forces the full path (self-built wheels).
+_CPU_AVX: "bool | None" = None
+
+
+def cpu_supports_avx() -> bool:
+    """True when heavy AI wheels (TF/dlib/onnxruntime) are safe to import."""
+    global _CPU_AVX
+    if _CPU_AVX is not None:
+        return _CPU_AVX
+    if os.environ.get("NEXACREW_LIGHT_CPU", "").strip() in ("1", "true", "yes"):
+        _CPU_AVX = False
+        return False
+    if os.environ.get("NEXACREW_FORCE_AVX", "").strip() in ("1", "true", "yes"):
+        _CPU_AVX = True
+        return True
+    result = None
+    try:
+        system = platform.system()
+        if system == "Windows":
+            import ctypes
+            # PF_AVX_INSTRUCTIONS_AVAILABLE = 39 (documented, Win7 SP1+ CPUs
+            # report correctly on Win10+; older Windows returns 0 = safe side)
+            result = bool(ctypes.windll.kernel32.IsProcessorFeaturePresent(39))
+        elif system == "Linux":
+            with open("/proc/cpuinfo", "r", encoding="utf-8", errors="ignore") as fh:
+                result = " avx" in fh.read().replace("\t", " ").lower()
+        elif system == "Darwin":
+            import subprocess
+            out = subprocess.run(
+                ["sysctl", "-a", "machdep.cpu"], capture_output=True,
+                text=True, timeout=5).stdout.lower()
+            # Apple Silicon has no AVX flag but runs x86 wheels via Rosetta 2
+            # (which does NOT support AVX) — only native arm64 wheels are safe
+            result = "avx1.0" in out or "avx" in out.split("features:")[-1][:400] \
+                or platform.machine() == "arm64"
+    except Exception:
+        result = None
+    if result is None:
+        # detection unavailable — assume modern CPU (previous behavior)
+        result = True
+    _CPU_AVX = result
+    return result
+
+
 def _ver(v: str) -> "tuple[int, ...]":
     out = []
     for part in v.split(".")[:3]:

@@ -9,6 +9,7 @@ import hmac
 import json
 import os
 import secrets
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -186,15 +187,21 @@ def employee_has_permission(employee, perm: str) -> bool:
 
 
 # ---------------- tamper-evident audit ----------------
+_AUDIT_LOCK = threading.Lock()   # chain integrity: one writer at a time
+
+
 def audit(db: Session, action: str, detail: str = "", company_id: Optional[str] = None,
           user_id: Optional[str] = None, employee_id: Optional[str] = None) -> AuditEvent:
     from sqlalchemy import text as _text
-    last = db.query(AuditEvent).order_by(_text("rowid DESC")).first()
-    prev_hash = last.entry_hash if last else ""
-    payload = f"{prev_hash}|{action}|{detail}|{company_id}|{user_id}|{dt.datetime.utcnow().isoformat()}"
-    entry_hash = hashlib.sha256(payload.encode()).hexdigest()
-    ev = AuditEvent(company_id=company_id, user_id=user_id, employee_id=employee_id,
-                    action=action, detail=detail[:4000], prev_hash=prev_hash, entry_hash=entry_hash)
-    db.add(ev)
-    db.commit()
+    # Without serialization two concurrent writers read the same tail and
+    # emit entries with identical prev_hash — a permanently broken chain.
+    with _AUDIT_LOCK:
+        last = db.query(AuditEvent).order_by(_text("rowid DESC")).first()
+        prev_hash = last.entry_hash if last else ""
+        payload = f"{prev_hash}|{action}|{detail}|{company_id}|{user_id}|{dt.datetime.utcnow().isoformat()}"
+        entry_hash = hashlib.sha256(payload.encode()).hexdigest()
+        ev = AuditEvent(company_id=company_id, user_id=user_id, employee_id=employee_id,
+                        action=action, detail=detail[:4000], prev_hash=prev_hash, entry_hash=entry_hash)
+        db.add(ev)
+        db.commit()
     return ev
