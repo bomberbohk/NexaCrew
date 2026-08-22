@@ -2965,6 +2965,18 @@ views.chats = async (v) => {
 
 async function renderChatMain(chat) {
   const main = $("#chat-main");
+  // The operator <select> shows the first employee even when the chat has no
+  // active_employee_id yet — the UI looked configured while the server
+  // rejected every prompt with 400. Persist the displayed default for real.
+  if (!chat.active_employee_id && state.employees.length) {
+    const first = state.employees.find(e => e.status === "Active") || state.employees[0];
+    try {
+      await api(`/chats/${chat.id}`, { method: "PUT", body: {
+        title: chat.title, company_id: chat.company_id,
+        project_id: chat.project_id, active_employee_id: first.id } });
+      chat.active_employee_id = first.id;
+    } catch { }
+  }
   const msgs = await api(`/chats/${chat.id}/messages`);
   const emp = state.employees.find(e => e.id === chat.active_employee_id);
   const company = state.companies.find(c => c.id === chat.company_id);
