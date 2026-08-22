@@ -1320,6 +1320,8 @@ MODULE_SYNONYMS: dict[str, str] = {
     "booking": "bookings", "appointment": "appts", "referral": "referrals",
     "return": "returns", "rma": "returns",
     "pallet": "inbound", "pallets": "inbound", "pallet grading": "inbound",
+    "warehouse": "inbound", "incoming": "inbound", "delivery": "inbound",
+    "truckload": "inbound", "truck load": "inbound",
 }
 _SYN_SORTED = sorted(MODULE_SYNONYMS, key=len, reverse=True)
 _MOD_WORDS = "|".join(_re.escape(s) for s in _SYN_SORTED)
@@ -1328,6 +1330,11 @@ BUSINESS_INTENT = _re.compile(
     r"\b(?:(?:list|show|check|view|open|search|find|count|report|summary|summarize|test)\b.{0,40}\b(" + _MOD_WORDS + r")s?\b"
     r"|(?:add|create|new|record|log|register|update|revise|edit|change|modify|set|setup|set\s+up|receive[ds]?|arriv\w+|test)\b.{0,60}\b(" + _MOD_WORDS + r")s?\b"
     r"|(" + _MOD_WORDS + r")s?\b.{0,40}\b(?:list|show|report|summary|add|create|new|record|log|update|revise|edit|setup|set\s+up|test)\b"
+    # logistics / arrival phrasing: "20 pallets (of X) get into the warehouse",
+    # "a shipment arrived", "please arrange/put away/unload them" — workers
+    # speak like this at the dock; route it to the register, not the AI.
+    r"|(" + _MOD_WORDS + r")s?\b.{0,60}\b(?:arriv\w+|deliver\w+|receiv\w+|unload\w+|put\s*away|arrange\w*|came\s+in|come\s+in|get\s+in(?:to)?|got\s+in(?:to)?|check(?:ed)?\s+in)\b"
+    r"|(?:arriv\w+|deliver\w+|unload\w+|incoming|put\s*away|arrange\w*)\b.{0,60}\b(" + _MOD_WORDS + r")s?\b"
     r"|(?:delete|remove|mark|complete|finish|done|paid)\b.{0,30}\b(" + _MOD_WORDS + r")s?\s*#?\d"
     r"|\b(?:business|erp)\s+(?:report|summary|overview|status)\b"
     r"|\blow\s+stock\b)", _re.I)
@@ -1610,7 +1617,9 @@ def handle_business_prompt(db, text: str, user_id: str) -> "str | None":
                 f"{ask}"
                 + _footer(f"business.{mod['key']}.update"))
 
-    if _re.search(r"\b(add|create|new|record|log|register|setup|set\s+up|receive[ds]?|arriv\w+)\b", low):
+    if _re.search(r"\b(add|create|new|record|log|register|setup|set\s+up|receive[ds]?|arriv\w+"
+                  r"|deliver\w+|unload\w+|put\s*away|arrange\w*|came\s+in|come\s+in"
+                  r"|get\s+in(?:to)?|got\s+in(?:to)?|incoming)\b", low):
         data: dict = _parse_kv(text)
         if not data:
             # heuristics: quantities, money, and the remaining text into first text field
