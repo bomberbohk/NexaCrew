@@ -5705,7 +5705,7 @@ async function loadBusinessRows(mod, root, ws) {
       return `<th><input class="biz-colf" data-c="${esc(f[0])}" type="search" value="${esc(colF[f[0]] || "")}" placeholder="🔎" style="width:100%;box-sizing:border-box;padding:4px 6px;font-size:11px;border-radius:5px;border:1px solid var(--border);background:var(--panel2);color:var(--text)"></th>`;
     }).join("")}<th></th><th style="white-space:nowrap"><button class="btn small" id="biz-colf-clear" title="${t('Clear filters')}">✕</button></th></tr>` : "";
     box.innerHTML = `<div class="biz-table-wrap"><table class="noc-table biz-table"><thead><tr>${dataFields.map(f => `<th>${esc(t(f[1]).toUpperCase())}</th>`).join("")}<th>${t("STATUS")}</th><th>${t("ACTIONS")}</th></tr>${filterRow}</thead><tbody>
-      ${vis.map(r => `<tr>${cols.map(c => {
+      ${vis.map(r => `<tr class="biz-row" data-rid="${r.id}" title="${esc(t('Double-click to open this record'))}">${cols.map(c => {
         const v = String(r.data[c] ?? "");
         const fdef = dataFields.find(f => f[0] === c) || [];
         const isLoc = v && (c === "location" || c === "spare_loc" || /storage location|map code/i.test(fdef[1] || ""));
@@ -5732,6 +5732,12 @@ async function loadBusinessRows(mod, root, ws) {
     const refresh = () => renderBusinessWorkspace(root, ws);
     $$(".biz-loc-link").forEach(a => a.onclick = () => invMapLocate(a.dataset.loc, root, ws));
     $$(".biz-edit").forEach(b => b.onclick = () => businessRecordModal(mod, rows.find(r => r.id === b.dataset.id), refresh));
+    // double-click any row → open the record form pre-filled with its data
+    $$(".biz-row", box).forEach(tr => tr.ondblclick = (e) => {
+      if (e.target.closest("button, a, input, select")) return;  // keep action clicks intact
+      const rec = rows.find(r => r.id === tr.dataset.rid);
+      if (rec) businessRecordModal(mod, rec, refresh);
+    });
     $$(".biz-badge").forEach(b => b.onclick = async () => {
       b.disabled = true;
       try {
