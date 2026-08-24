@@ -213,7 +213,7 @@ def _chat_owner(db: Session, run) -> "str | None":
 
 
 def run_agent_message(db: Session, chat: Chat, user_text: str, user_id: str,
-                      image_ref: str | None = None) -> dict:
+                      image_ref: str | None = None, face: str | None = None) -> dict:
     """Full pipeline for a chat message (spec §4)."""
     if not chat.active_employee_id:
         raise HTTPException(400, "No active employee selected for this chat — identity must be unambiguous")
@@ -390,7 +390,8 @@ def run_agent_message(db: Session, chat: Chat, user_text: str, user_id: str,
     if (not user_text.startswith("[SCHEDULED TASK") and BUSINESS_INTENT.search(op_text)
             and not EMAIL_INTENT.search(op_text)):
         try:
-            biz_msg = handle_business_prompt(db, op_text, user_id)
+            biz_msg = handle_business_prompt(db, op_text, user_id,
+                                             face=face, raw_text=user_text)
         except Exception as e:  # noqa: BLE001
             biz_msg = ("❌ **BUSINESS SUBSYSTEM FAULT**\n\nThe operation was aborted before commit. "
                        f"No data was modified.\n\n`DIAGNOSTIC: {e}`")

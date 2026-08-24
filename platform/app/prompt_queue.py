@@ -34,13 +34,14 @@ _started = False
 
 
 def _new_item(chat_id: str, user_id: str, content: str, image_ref: "str | None",
-              client_ip: str = "") -> dict:
+              client_ip: str = "", face: "str | None" = None) -> dict:
     return {
         "id": uuid.uuid4().hex[:12],
         "chat_id": chat_id,
         "user_id": user_id,
         "content": content,
         "image_ref": image_ref,
+        "face": face,
         "client_ip": client_ip,
         "status": "queued",           # queued | running | done | error
         "error": "",
@@ -51,12 +52,13 @@ def _new_item(chat_id: str, user_id: str, content: str, image_ref: "str | None",
 
 
 def enqueue(chat_id: str, user_id: str, content: str,
-            image_ref: "str | None" = None, client_ip: str = "") -> dict:
+            image_ref: "str | None" = None, client_ip: str = "",
+            face: "str | None" = None) -> dict:
     with _lock:
         q = _queues.setdefault(chat_id, [])
         if len([i for i in q if i["status"] in ("queued", "running")]) >= MAX_QUEUE_PER_CHAT:
             raise ValueError(f"Queue limit reached ({MAX_QUEUE_PER_CHAT} prompts per chat)")
-        item = _new_item(chat_id, user_id, content, image_ref, client_ip)
+        item = _new_item(chat_id, user_id, content, image_ref, client_ip, face)
         q.append(item)
     _wakeup.set()
     return dict(item)
@@ -124,7 +126,8 @@ def _run_item(item: dict) -> None:
         if not chat or chat.deleted_at:
             raise ValueError("Chat was deleted")
         res = run_agent_message(db, chat, item["content"], item["user_id"],
-                                image_ref=item.get("image_ref"))
+                                image_ref=item.get("image_ref"),
+                                face=item.get("face"))
         item["status"] = "done"
         if file_delivery_hook and item.get("client_ip"):
             try:

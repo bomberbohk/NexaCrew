@@ -1415,12 +1415,25 @@ def biz_owner_id(db, user_id: str) -> str:
         return user_id
 
 
-def handle_business_prompt(db, text: str, user_id: str) -> "str | None":
+def handle_business_prompt(db, text: str, user_id: str,
+                           face: "str | None" = None,
+                           raw_text: "str | None" = None) -> "str | None":
     """Operate ANY ERP register from a chat prompt (any language).
     Returns a reply string, or None when the prompt isn't a business op."""
     from .db import BusinessProfile, BusinessRecord
-    from .security import audit as _audit
+    from .security import audit as _audit0
     import datetime as _dt0
+
+    # ACTOR ATTRIBUTION — audits must carry the person who typed the prompt,
+    # not the tenant owner the records belong to; plus the operator face id
+    # (chat camera capture) and the ORIGINAL chat wording for the ISO trail.
+    actor_id = user_id
+    _extra = (f" face={face}" if face else " face=NONE")
+    if raw_text and raw_text.strip() and raw_text.strip() != text.strip():
+        _extra += f" | chat: {raw_text[:300]}"
+
+    def _audit(db_, action, detail, user_id=None):  # noqa: ANN001 — drop-in shim
+        return _audit0(db_, action, detail + _extra, user_id=actor_id)
 
     def _ts() -> str:
         from .tz import now_local

@@ -468,6 +468,25 @@ function grabLoginFace(timeoutMs = 3000) {  return new Promise(resolve => {
 
 // Badge-QR sign-in: scan the worker badge (wb-… token), then capture the
 // worker's face for the operations log and call /auth/badge-login.
+// Silent operator face for CHAT-DRIVEN operations: one webcam frame is
+// verified/stored server-side and its id is attached to every prompt, so
+// register mutations made via chat carry the same face attribution as the
+// Operations console. Cached 5 min — chatting stays instant. Best-effort:
+// chat NEVER blocks when no camera/face is available.
+async function grabOpsFaceId() {
+  const now = Date.now();
+  const c = window._opsFace;
+  if (c && now - c.ts < 300000) return c.id;
+  window._opsFace = { id: "", ts: now };        // one attempt per window
+  try {
+    const img = await grabLoginFace(3000);
+    if (!img) return "";
+    const res = await api("/business/face-capture", { method: "POST", body: { image: img } });
+    if (res && res.ok && res.face_id) { window._opsFace = { id: res.face_id, ts: now }; return res.face_id; }
+  } catch { }
+  return "";
+}
+
 function badgeLoginFlow() {
   const err = m => { $("#auth-err").textContent = m; $("#auth-err").classList.remove("hidden"); };
   const ov = document.createElement("div");
@@ -3254,6 +3273,8 @@ async function renderChatMain(chat) {
     lastMsgCount += 1;   // account for the user message the server will store
     box.scrollTop = box.scrollHeight;
     try {
+      const face = await grabOpsFaceId();      // operator attribution (≤ 3 s, cached)
+      if (face) body.face = face;
       await api(`/chats/${chat.id}/queue`, { method: "POST", body });
       poll();
     } catch (e) { toast(e.message, "err"); }

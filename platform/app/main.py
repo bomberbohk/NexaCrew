@@ -1182,6 +1182,7 @@ class ChatIn(BaseModel):
 class MessageIn(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
     image_ref: Optional[str] = None  # path of a referenced image (edit workflow)
+    face: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9_.\-]{1,80}\.jpg$")  # operator face id
 
 
 def _own_chat(db: Session, chat_id: str, user: User) -> Chat:
@@ -1332,7 +1333,8 @@ def send_message(chat_id: str, body: MessageIn, request: Request,
     image_ref = body.image_ref
     if image_ref and not _safe_image_path(image_ref):
         raise HTTPException(400, "Invalid reference image path")
-    res = run_agent_message(db, chat, body.content, user.id, image_ref=image_ref)
+    res = run_agent_message(db, chat, body.content, user.id, image_ref=image_ref,
+                            face=body.face)
     try:
         queue_client_file_delivery(db, _client_ip(request),
                                    (res or {}).get("message", ""))
@@ -1351,6 +1353,7 @@ prompt_queue.file_delivery_hook = queue_client_file_delivery
 class QueueItemIn(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
     image_ref: str | None = None
+    face: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.\-]{1,80}\.jpg$")  # operator face id
 
 
 @app.post("/api/chats/{chat_id}/queue")
@@ -1364,7 +1367,7 @@ def queue_prompt(chat_id: str, body: QueueItemIn, request: Request,
         raise HTTPException(400, "Invalid reference image path")
     try:
         item = prompt_queue.enqueue(chat_id, user.id, body.content, body.image_ref,
-                                    client_ip=_client_ip(request))
+                                    client_ip=_client_ip(request), face=body.face)
     except ValueError as e:
         raise HTTPException(429, str(e))
     return {"ok": True, "item": item}
